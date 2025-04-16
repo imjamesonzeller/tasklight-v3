@@ -50,3 +50,7 @@ func (s *WindowService) Show(id string) {
 		s.ToggleVisibility(id)
 	}
 }
+
+func (s *WindowService) IsVisible(id string) bool {
+	return s.state[id]
+}

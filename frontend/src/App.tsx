@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from "react";
 // import "./App.css";
-// import {GreetService} from "../bindings/github.com/imjamesonzeller/tasklight-v3";
-// import { Greet, ProcessMessage, ToggleVisibility } from "../wailsjs/go/main/App";
-// import { EventsOn } from "../wailsjs/runtime/runtime";
-import { WindowService as ws } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
+import { WindowService as ws, TaskService as ts } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import { Events } from '@wailsio/runtime';
 // @ts-ignore
 import { WailsEvent } from "@wailsio/runtime/types/events";
@@ -17,9 +14,9 @@ function App() {
   const updateName = (e: ChangeEvent<HTMLInputElement>) => setName(e.target.value);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    // if (e.key === "Enter") {
-    //   processMessage();
-    // }
+    if (e.key === "Enter") {
+      processMessage();
+    }
 
     if (e.key === "Escape") {
       e.preventDefault();
@@ -28,20 +25,20 @@ function App() {
     }
   };
 
-  // const processMessage = () => {
-  //   if (!name.trim()) {
-  //     setResultText("⚠️ Input cannot be empty.");
-  //     return;
-  //   }
-  //
-  //   ProcessMessage(name)
-  //       .then(() => {
-  //         setName("");
-  //       })
-  //       .catch(() => {
-  //         setResultText("❌ An error occurred while processing the message.");
-  //       });
-  // };
+  const processMessage = () => {
+    if (!name.trim()) {
+      setResultText("⚠️ Input cannot be empty.");
+      return;
+    }
+
+    ts.ProcessMessage(name)
+        .then(() => {
+          setName("");
+        })
+        .catch(() => {
+          setResultText("❌ An error occurred while processing the message.");
+        });
+  };
 
   useEffect(() => {
     const focusInput = () => {

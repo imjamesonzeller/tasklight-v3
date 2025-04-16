@@ -9,6 +9,11 @@ import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as application$0 from "../../wailsapp/wails/v3/pkg/application/models.js";
 
+export function IsVisible(id: string): Promise<boolean> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(101950909, id) as any;
+    return $resultPromise;
+}
+
 /**
  * RegisterWindow Register a window by ID
  */

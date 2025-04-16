@@ -5,7 +5,9 @@ import (
 	_ "embed"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
+	"github.com/wailsapp/wails/v3/pkg/events"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -75,13 +77,17 @@ func main() {
 	// 'Mac' options tailor the window when running on macOS.
 	// 'BackgroundColour' is the background colour of the window.
 	// 'URL' is the URL that will be loaded into the webview.
+	allowDevTools := os.Getenv("WAILS_ENV") == "dev"
+
 	mainWindow := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
-		Title:         "Input Window",
-		Width:         600,
-		Height:        200,
-		Frameless:     true,
-		DisableResize: true,
-		AlwaysOnTop:   true,
+		Name:            "main",
+		Title:           "Input Window",
+		Width:           550,
+		Height:          65,
+		Frameless:       true,
+		DisableResize:   true,
+		AlwaysOnTop:     true,
+		DevToolsEnabled: allowDevTools,
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTransparent,
@@ -100,6 +106,13 @@ func main() {
 
 	// Inject main window to window service
 	windowService.RegisterWindow("main", mainWindow)
+
+	// Global event listener for window events
+	mainWindow.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
+		if windowService.IsVisible("main") {
+			windowService.ToggleVisibility("main")
+		}
+	})
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.

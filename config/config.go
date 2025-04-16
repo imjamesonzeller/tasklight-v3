@@ -8,7 +8,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-//go:embed "../.env"
+//go:embed .env
 var envContent string
 
 type Config struct {
