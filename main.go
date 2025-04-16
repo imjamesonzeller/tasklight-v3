@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	_ "embed"
+	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
 	"log"
 	"runtime"
@@ -28,24 +29,26 @@ var trayIcon []byte
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
-	var app *application.App
+	config.Load()
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
 	hotkeyService := NewHotkeyService(windowService)
+	taskService := NewTaskService(windowService)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running an macOS.
-	app = application.New(application.Options{
+	app := application.New(application.Options{
 		Name:        "tasklight-v3",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
 			application.NewService(greetService),
 			application.NewService(windowService),
 			application.NewService(hotkeyService),
+			application.NewService(taskService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -57,8 +60,9 @@ func main() {
 	// Hide app from dock and CMD+Tab
 	hideAppFromDock()
 
-	// Inject app to hotkey service
+	// Inject app to services
 	hotkeyService.SetApp(app)
+	taskService.SetApp(app)
 
 	// Run Hotkey Service in go-func
 	go func() {
