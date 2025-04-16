@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import {GreetService} from "../bindings/changeme";
+import {GreetService} from "../bindings/github.com/imjamesonzeller/tasklight-v3";
 import {Events, WML} from "@wailsio/runtime";
 
 function App() {

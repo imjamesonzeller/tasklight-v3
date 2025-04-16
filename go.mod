@@ -1,4 +1,4 @@
-module changeme
+module github.com/imjamesonzeller/tasklight-v3
 
 go 1.22.4
 
