@@ -17,6 +17,11 @@ export function RegisterWindow(id: string, win: application$0.WebviewWindow | nu
     return $resultPromise;
 }
 
+export function Show(id: string): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(3882862632, id) as any;
+    return $resultPromise;
+}
+
 /**
  * ToggleVisibility Toggle visibility of a window by ID
  */

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	_ "embed"
+	"github.com/imjamesonzeller/tasklight-v3/tray"
 	"log"
 	"runtime"
 	"time"
@@ -17,6 +18,11 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// TODO: Create app icon for this
+//
+//go:embed frontend/public/wails.png
+var trayIcon []byte
 
 // main function serves as the application's entry point. It initializes the application, creates a window,
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
@@ -101,20 +107,9 @@ func main() {
 		}
 	}()
 
-	tray := app.NewSystemTray()
-	menu := application.NewMenu()
-
-	menu.Add("Show").OnClick(func(_ *application.Context) {
-		// TODO: Implement
-		//windowService.Show("main")
-		focusAppWindow()
-	})
-
-	menu.Add("Quit").OnClick(func(_ *application.Context) {
-		app.Quit()
-	})
-
-	tray.SetMenu(menu)
+	// Creation of Tray Menu
+	// TODO: Make this actually useful with like a settings menu thing
+	tray.Setup(app, windowService, trayIcon)
 
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()

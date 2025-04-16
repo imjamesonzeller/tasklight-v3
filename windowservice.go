@@ -39,3 +39,14 @@ func (s *WindowService) ToggleVisibility(id string) {
 	}
 	s.state[id] = !isVisible
 }
+
+func (s *WindowService) Show(id string) {
+	isVisible, ok := s.state[id]
+	if !ok {
+		return // silently ignore for now
+	}
+
+	if !isVisible {
+		s.ToggleVisibility(id)
+	}
+}
