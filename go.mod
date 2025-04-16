@@ -4,7 +4,10 @@ go 1.22.4
 
 toolchain go1.24.2
 
-require github.com/wailsapp/wails/v3 v3.0.0-alpha.9
+require (
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.9
+	golang.design/x/hotkey v0.4.1
+)
 
 require (
 	dario.cat/mergo v1.0.1 // indirect

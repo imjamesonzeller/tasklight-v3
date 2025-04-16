@@ -1,56 +1,93 @@
-import { useState, useEffect } from 'react'
-import {GreetService} from "../bindings/github.com/imjamesonzeller/tasklight-v3";
-import {Events, WML} from "@wailsio/runtime";
+import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from "react";
+// import "./App.css";
+// import {GreetService} from "../bindings/github.com/imjamesonzeller/tasklight-v3";
+// import { Greet, ProcessMessage, ToggleVisibility } from "../wailsjs/go/main/App";
+// import { EventsOn } from "../wailsjs/runtime/runtime";
+import { WindowService as ws } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
+import { Events } from '@wailsio/runtime';
+// @ts-ignore
+import { WailsEvent } from "@wailsio/runtime/types/events";
 
 function App() {
-  const [name, setName] = useState<string>('');
-  const [result, setResult] = useState<string>('Please enter your name below 👇');
-  const [time, setTime] = useState<string>('Listening for Time event...');
+  const [resultText, setResultText] = useState<string>("");
+  const [name, setName] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const window: string = "main"
 
-  const doGreet = () => {
-    let localName = name;
-    if (!localName) {
-      localName = 'anonymous';
+  const updateName = (e: ChangeEvent<HTMLInputElement>) => setName(e.target.value);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // if (e.key === "Enter") {
+    //   processMessage();
+    // }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      ws.ToggleVisibility(window);
+      setName("");
     }
-    GreetService.Greet(localName).then((resultValue: string) => {
-      setResult(resultValue);
-    }).catch((err: any) => {
-      console.log(err);
-    });
-  }
+  };
+
+  // const processMessage = () => {
+  //   if (!name.trim()) {
+  //     setResultText("⚠️ Input cannot be empty.");
+  //     return;
+  //   }
+  //
+  //   ProcessMessage(name)
+  //       .then(() => {
+  //         setName("");
+  //       })
+  //       .catch(() => {
+  //         setResultText("❌ An error occurred while processing the message.");
+  //       });
+  // };
 
   useEffect(() => {
-    Events.On('time', (timeValue: any) => {
-      setTime(timeValue.data);
+    const focusInput = () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        setResultText("");
+      }
+    };
+
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        focusInput();
+      }
+    }, 50);
+
+    Events.On("wails:focus", focusInput);
+  }, []);
+
+  useEffect(() => {
+    const off = Events.On("Backend:ErrorEvent", (ev: WailsEvent) => {
+      setResultText(`❌ Error: ${ev.data}`);
     });
-    // Reload WML so it picks up the wml tags
-    WML.Reload();
+
+    return () => {
+      off(); // <-- remove listener on unmount
+    };
   }, []);
 
   return (
-    <div className="container">
-      <div>
-        <a wml-openURL="https://wails.io">
-          <img src="/wails.png" className="logo" alt="Wails logo"/>
-        </a>
-        <a wml-openURL="https://reactjs.org">
-          <img src="/react.svg" className="logo react" alt="React logo"/>
-        </a>
-      </div>
-      <h1>Wails + React</h1>
-      <div className="result">{result}</div>
-      <div className="card">
-        <div className="input-box">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} type="text" autoComplete="off"/>
-          <button className="btn" onClick={doGreet}>Greet</button>
+      <div className="spotlight-container">
+        <div className="spotlight-box">
+          <input
+              ref={inputRef}
+              className="spotlight-input"
+              type="text"
+              placeholder="Type your task..."
+              value={name}
+              onKeyDown={handleKeyDown}
+              onChange={updateName}
+              autoComplete="off"
+          />
         </div>
+
+        {resultText && <div className="spotlight-results">{resultText}</div>}
       </div>
-      <div className="footer">
-        <div><p>Click on the Wails logo to learn more</p></div>
-        <div><p>{time}</p></div>
-      </div>
-    </div>
-  )
+  );
 }
 
-export default App
+export default App;
