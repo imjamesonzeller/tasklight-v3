@@ -5,30 +5,40 @@
 // @ts-ignore: Unused imports
 import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as application$0 from "../../wailsapp/wails/v3/pkg/application/models.js";
+/**
+ * Hide hides the window by ID
+ */
+export function Hide(id: string): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(1021148441, id) as any;
+    return $resultPromise;
+}
 
+/**
+ * IsVisible returns whether the window is currently visible
+ */
 export function IsVisible(id: string): Promise<boolean> & { cancel(): void } {
     let $resultPromise = $Call.ByID(101950909, id) as any;
     return $resultPromise;
 }
 
 /**
- * RegisterWindow Register a window by ID
+ * RegisterWindow registers a window factory under an ID
  */
-export function RegisterWindow(id: string, win: application$0.WebviewWindow | null): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(2953663024, id, win) as any;
+export function RegisterWindow(id: string, factory: any): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(2953663024, id, factory) as any;
     return $resultPromise;
 }
 
+/**
+ * Show displays the window by ID or recreates it if it was closed
+ */
 export function Show(id: string): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(3882862632, id) as any;
     return $resultPromise;
 }
 
 /**
- * ToggleVisibility Toggle visibility of a window by ID
+ * ToggleVisibility toggles a window's visibility or recreates it if destroyed
  */
 export function ToggleVisibility(id: string): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(4127976233, id) as any;

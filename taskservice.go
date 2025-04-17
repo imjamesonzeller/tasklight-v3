@@ -39,6 +39,10 @@ func (ts *TaskService) SetApp(app *application.App) {
 // ProcessMessage Called from frontend
 func (ts *TaskService) ProcessMessage(message string) {
 	task := ts.ProcessedThroughAI(message)
+
+	// API PASS-THROUGH
+	// task := TaskInformation{message, nil}
+
 	status := ts.SendToNotion(task)
 
 	if status != "200 OK" {

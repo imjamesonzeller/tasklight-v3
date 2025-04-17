@@ -32,6 +32,7 @@ var trayIcon []byte
 // logs any error that might occur.
 func main() {
 	config.Load()
+
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
@@ -42,7 +43,7 @@ func main() {
 	// Variables 'Name' and 'Description' are for application metadata.
 	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
+	// 'Mac' options tailor the application when running on macOS.
 	app := application.New(application.Options{
 		Name:        "tasklight-v3",
 		Description: "A demo of using raw HTML & CSS",
@@ -59,6 +60,7 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
+
 	// Hide app from dock and CMD+Tab
 	hideAppFromDock()
 
@@ -79,40 +81,56 @@ func main() {
 	// 'URL' is the URL that will be loaded into the webview.
 	allowDevTools := os.Getenv("WAILS_ENV") == "dev"
 
-	mainWindow := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
-		Name:            "main",
-		Title:           "Input Window",
-		Width:           550,
-		Height:          65,
-		Frameless:       true,
-		DisableResize:   true,
-		AlwaysOnTop:     true,
-		DevToolsEnabled: allowDevTools,
-		Mac: application.MacWindow{
-			InvisibleTitleBarHeight: 50,
-			Backdrop:                application.MacBackdropTransparent,
-			TitleBar: application.MacTitleBar{
-				AppearsTransparent:   true,
-				Hide:                 true,
-				HideTitle:            true,
-				FullSizeContent:      true,
-				UseToolbar:           true,
-				HideToolbarSeparator: true,
+	// Register main window factory
+	windowService.RegisterWindow("main", func() *application.WebviewWindow {
+		return app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
+			Name:            "main",
+			Title:           "Input Window",
+			Width:           550,
+			Height:          65,
+			Frameless:       true,
+			DisableResize:   true,
+			AlwaysOnTop:     true,
+			DevToolsEnabled: allowDevTools,
+			Mac: application.MacWindow{
+				InvisibleTitleBarHeight: 50,
+				Backdrop:                application.MacBackdropTransparent,
+				TitleBar: application.MacTitleBar{
+					AppearsTransparent:   true,
+					Hide:                 true,
+					HideTitle:            true,
+					FullSizeContent:      true,
+					UseToolbar:           true,
+					HideToolbarSeparator: true,
+				},
 			},
-		},
-		BackgroundColour: application.NewRGBA(27, 38, 54, 0),
-		URL:              "/",
+			BackgroundColour: application.NewRGBA(27, 38, 54, 0),
+			URL:              "/",
+		})
 	})
 
-	// Inject main window to window service
-	windowService.RegisterWindow("main", mainWindow)
-
-	// Global event listener for window events
-	mainWindow.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
-		if windowService.IsVisible("main") {
-			windowService.ToggleVisibility("main")
-		}
+	// Register settings window factory
+	windowService.RegisterWindow("settings", func() *application.WebviewWindow {
+		return app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
+			Name:          "settings",
+			Title:         "Tasklight Settings",
+			Width:         400,
+			Height:        450,
+			Frameless:     false, // normal window for settings
+			DisableResize: false,
+			URL:           "/settings", // route you’ll create in frontend
+			Hidden:        true,
+		})
 	})
+
+	// Global event listener for main window events
+	if win, ok := windowService.windows["main"]; ok {
+		win.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
+			if windowService.IsVisible("main") {
+				windowService.ToggleVisibility("main")
+			}
+		})
+	}
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.
