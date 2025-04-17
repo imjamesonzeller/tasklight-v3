@@ -28,7 +28,6 @@ func (s *HotkeyService) StartHotkeyListener() {
 	// Register hotkeys
 	// visHk is the hotkey for toggling main window visibility
 	visHk := hotkey.New([]hotkey.Modifier{hotkey.ModCtrl}, hotkey.KeySpace)
-
 	if err := visHk.Register(); err != nil {
 		fmt.Println("❌ Failed to register hotkey:", err)
 		return

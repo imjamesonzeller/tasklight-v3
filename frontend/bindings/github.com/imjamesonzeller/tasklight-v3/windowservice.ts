@@ -14,7 +14,7 @@ export function Hide(id: string): Promise<void> & { cancel(): void } {
 }
 
 /**
- * IsVisible returns whether the window is currently visible
+ * IsVisible returns whether a window is currently visible
  */
 export function IsVisible(id: string): Promise<boolean> & { cancel(): void } {
     let $resultPromise = $Call.ByID(101950909, id) as any;
@@ -30,7 +30,7 @@ export function RegisterWindow(id: string, factory: any): Promise<void> & { canc
 }
 
 /**
- * Show displays the window by ID or recreates it if it was closed
+ * Show displays the window by ID, creating it if necessary
  */
 export function Show(id: string): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(3882862632, id) as any;
@@ -38,7 +38,7 @@ export function Show(id: string): Promise<void> & { cancel(): void } {
 }
 
 /**
- * ToggleVisibility toggles a window's visibility or recreates it if destroyed
+ * ToggleVisibility shows or hides the window
  */
 export function ToggleVisibility(id: string): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(4127976233, id) as any;

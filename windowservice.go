@@ -21,77 +21,77 @@ func NewWindowService() *WindowService {
 
 // RegisterWindow registers a window factory under an ID
 func (s *WindowService) RegisterWindow(id string, factory func() *application.WebviewWindow) {
-	win := factory()
-	s.windows[id] = win
 	s.factories[id] = factory
-
-	// Remove the window from the map if it gets closed
-	win.OnWindowEvent(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		fmt.Println("Window closed:", id)
-		delete(s.windows, id)
-	})
 }
 
-// Show displays the window by ID or recreates it if it was closed
-func (s *WindowService) Show(id string) {
-	win, ok := s.windows[id]
-	if !ok {
-		factory, exists := s.factories[id]
-		if !exists {
-			fmt.Println("No factory registered for window:", id)
-			return
-		}
-		fmt.Println("Recreating window:", id)
-		win = factory()
-		s.windows[id] = win
-		win.OnWindowEvent(events.Common.WindowClosing, func(e *application.WindowEvent) {
-			fmt.Println("Window closed:", id)
-			delete(s.windows, id)
-		})
+// internal: ensures the window exists, creates if needed
+func (s *WindowService) getOrCreateWindow(id string) (*application.WebviewWindow, bool) {
+	win, exists := s.windows[id]
+	if exists {
+		return win, true
 	}
 
-	application.InvokeSync(func() {
+	factory, ok := s.factories[id]
+	if !ok {
+		fmt.Println("❌ No factory registered for window:", id)
+		return nil, false
+	}
+
+	win = factory()
+	s.windows[id] = win
+
+	// Cleanup when closed
+	win.OnWindowEvent(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		fmt.Println("🪟 Window closed:", id)
+		delete(s.windows, id)
+	})
+
+	return win, true
+}
+
+// Show displays the window by ID, creating it if necessary
+func (s *WindowService) Show(id string) {
+	win, ok := s.getOrCreateWindow(id)
+	if !ok {
+		return
+	}
+
+	application.InvokeAsync(func() {
 		win.Show()
-		_ = win.SetAlwaysOnTop(true)
-		if id == "main" {
-			focusAppWindow()
-		}
+		win.Focus()
 	})
 }
 
 // Hide hides the window by ID
 func (s *WindowService) Hide(id string) {
-	win, ok := s.windows[id]
-	if ok {
-		win.Hide()
+	if win, ok := s.windows[id]; ok {
+		application.InvokeAsync(func() {
+			win.Hide()
+		})
 	}
 }
 
-// ToggleVisibility toggles a window's visibility or recreates it if destroyed
+// ToggleVisibility shows or hides the window
 func (s *WindowService) ToggleVisibility(id string) {
-	win, ok := s.windows[id]
+	win, ok := s.getOrCreateWindow(id)
 	if !ok {
-		s.Show(id)
 		return
 	}
 
-	isVisible := win.IsVisible()
-
-	if isVisible {
-		win.Hide()
-	} else {
-		s.Show(id)
-	}
+	application.InvokeAsync(func() {
+		if win.IsVisible() {
+			win.Hide()
+		} else {
+			win.Show()
+			win.Focus()
+		}
+	})
 }
 
-// IsVisible returns whether the window is currently visible
+// IsVisible returns whether a window is currently visible
 func (s *WindowService) IsVisible(id string) bool {
-	win, ok := s.windows[id]
-	if !ok {
-		return false
+	if win, ok := s.windows[id]; ok {
+		return win.IsVisible()
 	}
-
-	visible := win.IsVisible()
-	
-	return visible
+	return false
 }

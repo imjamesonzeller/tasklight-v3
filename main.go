@@ -83,7 +83,7 @@ func main() {
 
 	// Register main window factory
 	windowService.RegisterWindow("main", func() *application.WebviewWindow {
-		return app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
+		win := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
 			Name:            "main",
 			Title:           "Input Window",
 			Width:           550,
@@ -107,6 +107,19 @@ func main() {
 			BackgroundColour: application.NewRGBA(27, 38, 54, 0),
 			URL:              "/",
 		})
+
+		// ✅ Attach event safely during creation
+		win.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
+			if windowService.IsVisible("main") {
+				windowService.ToggleVisibility("main")
+			}
+		})
+
+		return win
+	})
+
+	app.OnEvent("app:ready", func(e *application.CustomEvent) {
+		windowService.Show("main")
 	})
 
 	// Register settings window factory
@@ -118,19 +131,9 @@ func main() {
 			Height:        450,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
-			URL:           "/settings", // route you’ll create in frontend
-			Hidden:        true,
+			URL:           "/#/settings", // route you’ll create in frontend
 		})
 	})
-
-	// Global event listener for main window events
-	if win, ok := windowService.windows["main"]; ok {
-		win.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
-			if windowService.IsVisible("main") {
-				windowService.ToggleVisibility("main")
-			}
-		})
-	}
 
 	// Create a goroutine that emits an event containing the current time every second.
 	// The frontend can listen to this event and update the UI accordingly.
@@ -147,6 +150,11 @@ func main() {
 	tray.Setup(app, windowService, trayIcon)
 
 	// Run the application. This blocks until the application has been exited.
+	go func() {
+		time.Sleep(100 * time.Millisecond) // let Run() start first
+		app.EmitEvent("app:ready")
+	}()
+
 	err := app.Run()
 
 	// If an error occurred while running the application, log it and exit.

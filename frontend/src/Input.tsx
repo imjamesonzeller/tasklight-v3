@@ -20,14 +20,15 @@ function Input() {
 
         if (e.key === "Escape") {
             e.preventDefault();
-            ws.ToggleVisibility(window);
+            ws.Hide(window);
             setName("");
         }
 
         if (e.metaKey && e.key === ",") {
             // Hotkey to open settings
             e.preventDefault()
-            ws.ToggleVisibility("settings")
+            ws.Show("settings")
+            ws.Hide(window)
         }
     };
 
