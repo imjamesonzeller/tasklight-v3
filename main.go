@@ -38,6 +38,7 @@ func main() {
 	windowService := NewWindowService()
 	hotkeyService := NewHotkeyService(windowService)
 	taskService := NewTaskService(windowService)
+	settingsService := NewSettingsService()
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -52,6 +53,7 @@ func main() {
 			application.NewService(windowService),
 			application.NewService(hotkeyService),
 			application.NewService(taskService),
+			application.NewService(settingsService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -67,6 +69,7 @@ func main() {
 	// Inject app to services
 	hotkeyService.SetApp(app)
 	taskService.SetApp(app)
+	settingsService.SetApp(app)
 
 	// Run Hotkey Service in go-func
 	go func() {
@@ -120,6 +123,7 @@ func main() {
 
 	app.OnEvent("app:ready", func(e *application.CustomEvent) {
 		windowService.Show("main")
+		settingsService.LoadSettings()
 	})
 
 	// Register settings window factory

@@ -1,0 +1,14 @@
+{
+  "notion_db_id": "383875b3347e4089b7c69a123b96cd81",
+  "use_open_ai": true,
+  "theme": "",
+  "launch_on_startup": true,
+  "hotkey": {
+    "Modifiers": [
+      4096
+    ],
+    "Key": 11
+  },
+  "has_notion_secret": true,
+  "has_openai_key": true
+}
