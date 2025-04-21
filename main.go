@@ -4,6 +4,7 @@ import (
 	"embed"
 	_ "embed"
 	"github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"log"
@@ -31,14 +32,12 @@ var trayIcon []byte
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
-	config.Load()
-
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
 	hotkeyService := NewHotkeyService(windowService)
 	taskService := NewTaskService(windowService)
-	settingsService := NewSettingsService()
+	settingsService := settingsservice.NewSettingsService()
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -124,6 +123,7 @@ func main() {
 	app.OnEvent("app:ready", func(e *application.CustomEvent) {
 		windowService.Show("main")
 		settingsService.LoadSettings()
+		config.Init(&settingsService.Settings)
 	})
 
 	// Register settings window factory

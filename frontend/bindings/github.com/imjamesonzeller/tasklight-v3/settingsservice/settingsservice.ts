@@ -7,14 +7,14 @@ import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as application$0 from "../../wailsapp/wails/v3/pkg/application/models.js";
+import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 export function GetSettings(): Promise<$models.FrontendSettings> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(3034808949) as any;
+    let $resultPromise = $Call.ByID(1299891847) as any;
     let $typingPromise = $resultPromise.then(($result: any) => {
         return $$createType0($result);
     }) as any;
@@ -23,30 +23,30 @@ export function GetSettings(): Promise<$models.FrontendSettings> & { cancel(): v
 }
 
 export function LoadSettings(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(3298483949) as any;
+    let $resultPromise = $Call.ByID(3851458195) as any;
     return $resultPromise;
 }
 
 export function SaveSettings(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(2662658340) as any;
+    let $resultPromise = $Call.ByID(194780622) as any;
     return $resultPromise;
 }
 
 /**
- * Internal version that only writes to file
+ * SaveSettingsInternal Internal version that only writes to file
  */
 export function SaveSettingsInternal(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(2120971533) as any;
+    let $resultPromise = $Call.ByID(1370134243) as any;
     return $resultPromise;
 }
 
 export function SetApp(app: application$0.App | null): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(72634023, app) as any;
+    let $resultPromise = $Call.ByID(2639386645, app) as any;
     return $resultPromise;
 }
 
 export function UpdateSettings(raw: { [_: string]: any }): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(2846770304, raw) as any;
+    let $resultPromise = $Call.ByID(3903608962, raw) as any;
     return $resultPromise;
 }
 

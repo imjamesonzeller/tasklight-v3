@@ -1,4 +1,4 @@
-package main
+package settingsservice
 
 import "golang.design/x/hotkey"
 

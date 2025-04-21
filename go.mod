@@ -5,7 +5,6 @@ go 1.22.4
 toolchain go1.24.2
 
 require (
-	github.com/joho/godotenv v1.5.1
 	github.com/keybase/go-keychain v0.0.1
 	github.com/openai/openai-go v0.1.0-beta.10
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.9

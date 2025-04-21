@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SettingsService as s, FrontendSettings } from "../bindings/github.com/imjamesonzeller/tasklight-v3";
+import { SettingsService as s, FrontendSettings } from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice";
 import { ApplicationSettings } from "./types/ExtendedSettings.ts";
 
 export default function Settings() {

@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	c "github.com/imjamesonzeller/tasklight-v3/config"
 	"io"
 	"log"
 	"net/http"
 	"time"
 
-	c "github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/wailsapp/wails/v3/pkg/application"

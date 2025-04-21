@@ -1,4 +1,4 @@
-package main
+package settingsservice
 
 import (
 	"encoding/json"
@@ -30,12 +30,14 @@ func (s *SettingsService) SetApp(app *application.App) {
 	s.app = app
 }
 
+var AppConfig *ApplicationSettings
+
 type ApplicationSettings struct {
 	NotionDBID      string       `json:"notion_db_id"`
 	UseOpenAI       bool         `json:"use_open_ai"`
 	Theme           string       `json:"theme"`
 	LaunchOnStartup bool         `json:"launch_on_startup"`
-	Hotkey          HotkeyConfig `json:"hotkey"`
+	Hotkey          hotkeyConfig `json:"hotkey"`
 	HasNotionSecret bool         `json:"has_notion_secret"`
 	HasOpenAIAPIKey bool         `json:"has_openai_key"`
 
@@ -54,13 +56,13 @@ type FrontendSettings struct {
 	HasOpenAIAPIKey bool   `json:"has_openai_key"`
 }
 
-type HotkeyConfig struct {
+type hotkeyConfig struct {
 	Modifiers []hotkey.Modifier `json:"Modifiers"`
 	Key       hotkey.Key        `json:"Key"`
 }
 
-// MarshalJSON converts HotkeyConfig to a "ctrl+space" style string for JSON
-func (h *HotkeyConfig) MarshalJSON() ([]byte, error) {
+// MarshalJSON converts hotkeyConfig to a "ctrl+space" style string for JSON
+func (h *hotkeyConfig) MarshalJSON() ([]byte, error) {
 	var parts []string
 	for _, mod := range h.Modifiers {
 		if modStr, ok := revModMap[mod]; ok {
@@ -73,8 +75,8 @@ func (h *HotkeyConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(strings.Join(parts, "+"))
 }
 
-// UnmarshalJSON parses "ctrl+space" style strings into a HotkeyConfig
-//func (h *HotkeyConfig) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON parses "ctrl+space" style strings into a hotkeyConfig
+//func (h *hotkeyConfig) UnmarshalJSON(data []byte) error {
 //	var input string
 //	if err := json.Unmarshal(data, &input); err != nil {
 //		return err
@@ -169,7 +171,7 @@ func (s *SettingsService) SaveSettings() {
 	_ = updateSecret(keychainOpenAIKey, s.Settings.OpenAIAPIKey)
 }
 
-func parseHotkeyString(input string) (HotkeyConfig, error) {
+func parseHotkeyString(input string) (hotkeyConfig, error) {
 	parts := strings.Split(strings.ToLower(strings.TrimSpace(input)), "+")
 	var mods []hotkey.Modifier
 	var key hotkey.Key
@@ -182,15 +184,15 @@ func parseHotkeyString(input string) (HotkeyConfig, error) {
 			key = k
 			keyFound = true
 		} else {
-			return HotkeyConfig{}, fmt.Errorf("unknown hotkey part: %s", part)
+			return hotkeyConfig{}, fmt.Errorf("unknown hotkey part: %s", part)
 		}
 	}
 
 	if !keyFound {
-		return HotkeyConfig{}, fmt.Errorf("no valid key in hotkey string")
+		return hotkeyConfig{}, fmt.Errorf("no valid key in hotkey string")
 	}
 
-	return HotkeyConfig{
+	return hotkeyConfig{
 		Modifiers: mods,
 		Key:       key,
 	}, nil
@@ -210,24 +212,57 @@ func (s *SettingsService) UpdateSettings(raw map[string]interface{}) error {
 		return fmt.Errorf("invalid hotkey: %w", err)
 	}
 
-	// Convert the rest of raw -> ApplicationSettings
+	// Convert the rest of raw -> applicationSettings
 	var newSettings ApplicationSettings
 	data, _ := json.Marshal(raw)
 	_ = json.Unmarshal(data, &newSettings)
 
 	newSettings.Hotkey = hotkeyConfig
-	s.Settings = newSettings
+
+	// If secret was provided, update keychain and memory
+	if newSettings.NotionSecret != "" {
+		_ = updateSecret(keychainNotionKey, newSettings.NotionSecret)
+		s.Settings.NotionSecret = newSettings.NotionSecret
+		newSettings.HasNotionSecret = true
+	} else {
+		newSettings.NotionSecret = s.Settings.NotionSecret
+		newSettings.HasNotionSecret = s.Settings.HasNotionSecret
+	}
+
+	if newSettings.OpenAIAPIKey != "" {
+		_ = updateSecret(keychainOpenAIKey, newSettings.OpenAIAPIKey)
+		s.Settings.OpenAIAPIKey = newSettings.OpenAIAPIKey
+		newSettings.HasOpenAIAPIKey = true
+	} else {
+		newSettings.OpenAIAPIKey = s.Settings.OpenAIAPIKey
+		newSettings.HasOpenAIAPIKey = s.Settings.HasOpenAIAPIKey
+	}
+
+	// Save updated config excluding secrets
+	s.Settings.NotionDBID = newSettings.NotionDBID
+	s.Settings.UseOpenAI = newSettings.UseOpenAI
+	s.Settings.Theme = newSettings.Theme
+	s.Settings.LaunchOnStartup = newSettings.LaunchOnStartup
+	s.Settings.Hotkey = newSettings.Hotkey
+	s.Settings.HasNotionSecret = newSettings.HasNotionSecret
+	s.Settings.HasOpenAIAPIKey = newSettings.HasOpenAIAPIKey
 
 	return s.SaveSettingsInternal()
 }
 
-// Internal version that only writes to file
+// SaveSettingsInternal Internal version that only writes to file
 func (s *SettingsService) SaveSettingsInternal() error {
-	data, err := json.MarshalIndent(s.Settings, "", "  ")
+	// Copy settings and sanitize secrets
+	safeCopy := s.Settings
+	safeCopy.NotionSecret = ""
+	safeCopy.OpenAIAPIKey = ""
+
+	data, err := json.MarshalIndent(safeCopy, "", "  ")
 	if err != nil {
 		return err
 	}
-	fmt.Println("Writing settings.json:", string(data)) // <== ADD THIS
+
+	fmt.Println("Writing settings.json:", string(data))
 	return os.WriteFile("settings.json", data, 0644)
 }
 

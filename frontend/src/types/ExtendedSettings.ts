@@ -1,4 +1,4 @@
-import type { FrontendSettings } from "../../bindings/github.com/imjamesonzeller/tasklight-v3";
+import type { FrontendSettings } from "../../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice";
 
 // Extend the Wails-generated type with secrets
 export interface ApplicationSettings extends FrontendSettings {
