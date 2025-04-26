@@ -32,12 +32,14 @@ var trayIcon []byte
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	config.LoadEnv()
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
 	hotkeyService := NewHotkeyService(windowService)
 	taskService := NewTaskService(windowService)
 	settingsService := settingsservice.NewSettingsService()
+	notionService := NewNotionService(settingsService)
 
 	// Create a new Wails application by providing the necessary options.
 	// Variables 'Name' and 'Description' are for application metadata.
@@ -53,6 +55,7 @@ func main() {
 			application.NewService(hotkeyService),
 			application.NewService(taskService),
 			application.NewService(settingsService),
+			application.NewService(notionService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -123,7 +126,7 @@ func main() {
 	app.OnEvent("app:ready", func(e *application.CustomEvent) {
 		windowService.Show("main")
 		settingsService.LoadSettings()
-		config.Init(&settingsService.Settings)
+		config.Init(&settingsService.AppSettings)
 	})
 
 	// Register settings window factory

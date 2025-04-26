@@ -38,10 +38,10 @@ func (ts *TaskService) SetApp(app *application.App) {
 
 // ProcessMessage Called from frontend
 func (ts *TaskService) ProcessMessage(message string) {
-	task := ts.ProcessedThroughAI(message)
+	//task := ts.ProcessedThroughAI(message)
 
 	// API PASS-THROUGH
-	// task := TaskInformation{message, nil}
+	task := TaskInformation{message, nil}
 
 	status := ts.SendToNotion(task)
 
@@ -131,7 +131,10 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 	if err != nil {
 		log.Fatalf("Error creating request: %v", err)
 	}
-	req.Header.Add("Authorization", "Bearer "+c.AppConfig.NotionSecret)
+
+	//println("NotionAccessToken: ", c.AppConfig.NotionAccessToken)
+
+	req.Header.Add("Authorization", "Bearer "+c.AppConfig.NotionAccessToken)
 	req.Header.Add("Content-Type", "application/json; charset=utf-8")
 	req.Header.Add("Notion-Version", "2022-06-28")
 

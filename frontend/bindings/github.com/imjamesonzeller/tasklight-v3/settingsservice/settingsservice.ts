@@ -27,16 +27,18 @@ export function LoadSettings(): Promise<void> & { cancel(): void } {
     return $resultPromise;
 }
 
-export function SaveSettings(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(194780622) as any;
+export function SaveNotionToken(token: string): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(1686561367, token) as any;
     return $resultPromise;
 }
 
-/**
- * SaveSettingsInternal Internal version that only writes to file
- */
-export function SaveSettingsInternal(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(1370134243) as any;
+export function SaveOpenAIKey(key: string): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(2201247664, key) as any;
+    return $resultPromise;
+}
+
+export function SaveSettings(): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(194780622) as any;
     return $resultPromise;
 }
 
@@ -45,8 +47,8 @@ export function SetApp(app: application$0.App | null): Promise<void> & { cancel(
     return $resultPromise;
 }
 
-export function UpdateSettings(raw: { [_: string]: any }): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(3903608962, raw) as any;
+export function UpdateSettingsFromFrontend(raw: { [_: string]: any }): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(2794697606, raw) as any;
     return $resultPromise;
 }
 
