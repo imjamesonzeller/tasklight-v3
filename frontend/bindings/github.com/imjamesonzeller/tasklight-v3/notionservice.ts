@@ -5,7 +5,19 @@
 // @ts-ignore: Unused imports
 import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
+export function GetNotionDatabases(): Promise<{ [_: string]: string }> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(600908369) as any;
+    let $typingPromise = $resultPromise.then(($result: any) => {
+        return $$createType0($result);
+    }) as any;
+    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
+    return $typingPromise;
+}
+
 export function StartOAuth(): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(301428963) as any;
     return $resultPromise;
 }
+
+// Private type creation functions
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);

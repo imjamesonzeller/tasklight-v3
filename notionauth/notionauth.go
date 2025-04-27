@@ -2,13 +2,18 @@ package notionauth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"io"
 	"log"
 	"net/http"
+	"sync"
+	"time"
+
 	//"net/url"
 	"encoding/base64"
 )
@@ -32,10 +37,35 @@ type Owner struct {
 	AvatarURL *string `json:"avatar_url,omitempty"`
 }
 
-// StartLocalOAuthListener listens for redirect from api.jamesonzeller.com for Notion code,
-// it then handles it and turns into OAuth token and saves it.
-func StartLocalOAuthListener(s *settingsservice.SettingsService) {
-	http.HandleFunc("/oauth", func(w http.ResponseWriter, r *http.Request) {
+// StartLocalOAuthListener starts http server and handles shutting it down
+func StartLocalOAuthListener(settings *settingsservice.SettingsService) {
+	log.Printf("main: starting HTTP server")
+
+	httpServerExitDone := &sync.WaitGroup{}
+
+	httpServerExitDone.Add(1)
+	srv := startHttpServer(httpServerExitDone, settings)
+
+	log.Printf("main: serving for 10 seconds")
+
+	time.Sleep(10 * time.Second)
+
+	log.Printf("main: stopping HTTP server")
+
+	if err := srv.Shutdown(context.TODO()); err != nil {
+		panic(err)
+	}
+
+	httpServerExitDone.Wait()
+	log.Printf("main: done. exiting")
+}
+
+// startHttpServer starts listener for redirect from api.jamesonzeller.com for Notion code, and then it handles it
+// by converting to token and then saving it.
+func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *http.Server {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/oauth", func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			http.Error(w, "Missing code", http.StatusBadRequest)
@@ -62,13 +92,20 @@ func StartLocalOAuthListener(s *settingsservice.SettingsService) {
 		fmt.Fprintln(w, "<html><body><h2>✅ Linked! You may close this tab.</h2></body></html>")
 	})
 
+	srv := &http.Server{
+		Addr:    "localhost:5173",
+		Handler: mux,
+	}
+
 	go func() {
-		log.Println("Listening on http://localhost:5173/oauth...")
-		err := http.ListenAndServe("localhost:5173", nil)
-		if err != nil {
-			log.Fatal("OAuth listener failed:", err)
+		defer wg.Done()
+
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("ListenAndServe(): %v", err)
 		}
 	}()
+
+	return srv
 }
 
 type NotionOAuthRequest struct {
