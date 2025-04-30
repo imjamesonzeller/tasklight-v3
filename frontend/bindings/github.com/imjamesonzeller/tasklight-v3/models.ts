@@ -5,6 +5,122 @@
 // @ts-ignore: Unused imports
 import {Create as $Create} from "@wailsio/runtime";
 
+export class DatabaseMinimal {
+    "id": string;
+    "title": RichTextObj[];
+    "Properties": { [_: string]: PropertyObj };
+
+    /** Creates a new DatabaseMinimal instance. */
+    constructor($$source: Partial<DatabaseMinimal> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = [];
+        }
+        if (!("Properties" in $$source)) {
+            this["Properties"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DatabaseMinimal instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DatabaseMinimal {
+        const $$createField1_0 = $$createType1;
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("title" in $$parsedSource) {
+            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
+        }
+        if ("Properties" in $$parsedSource) {
+            $$parsedSource["Properties"] = $$createField2_0($$parsedSource["Properties"]);
+        }
+        return new DatabaseMinimal($$parsedSource as Partial<DatabaseMinimal>);
+    }
+}
+
+export class NotionDBResponse {
+    "results": DatabaseMinimal[];
+
+    /** Creates a new NotionDBResponse instance. */
+    constructor($$source: Partial<NotionDBResponse> = {}) {
+        if (!("results" in $$source)) {
+            this["results"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NotionDBResponse instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NotionDBResponse {
+        const $$createField0_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
+        }
+        return new NotionDBResponse($$parsedSource as Partial<NotionDBResponse>);
+    }
+}
+
+export class PropertyObj {
+    "id": string;
+    "name": string;
+    "type": string;
+
+    /** Creates a new PropertyObj instance. */
+    constructor($$source: Partial<PropertyObj> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PropertyObj instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PropertyObj {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PropertyObj($$parsedSource as Partial<PropertyObj>);
+    }
+}
+
+export class RichTextObj {
+    "text": TextContent;
+
+    /** Creates a new RichTextObj instance. */
+    constructor($$source: Partial<RichTextObj> = {}) {
+        if (!("text" in $$source)) {
+            this["text"] = (new TextContent());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RichTextObj instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RichTextObj {
+        const $$createField0_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("text" in $$parsedSource) {
+            $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
+        }
+        return new RichTextObj($$parsedSource as Partial<RichTextObj>);
+    }
+}
+
 export class TaskInformation {
     "title": string;
     "date": string | null;
@@ -29,3 +145,33 @@ export class TaskInformation {
         return new TaskInformation($$parsedSource as Partial<TaskInformation>);
     }
 }
+
+export class TextContent {
+    "content": string;
+
+    /** Creates a new TextContent instance. */
+    constructor($$source: Partial<TextContent> = {}) {
+        if (!("content" in $$source)) {
+            this["content"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TextContent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TextContent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TextContent($$parsedSource as Partial<TextContent>);
+    }
+}
+
+// Private type creation functions
+const $$createType0 = RichTextObj.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = PropertyObj.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $$createType2);
+const $$createType4 = DatabaseMinimal.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = TextContent.createFrom;

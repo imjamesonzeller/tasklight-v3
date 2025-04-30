@@ -5,10 +5,14 @@
 // @ts-ignore: Unused imports
 import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
-export function GetNotionDatabases(): Promise<{ [_: string]: string }> & { cancel(): void } {
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+export function GetNotionDatabases(): Promise<$models.NotionDBResponse | null> & { cancel(): void } {
     let $resultPromise = $Call.ByID(600908369) as any;
     let $typingPromise = $resultPromise.then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     }) as any;
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -20,4 +24,5 @@ export function StartOAuth(): Promise<void> & { cancel(): void } {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType0 = $models.NotionDBResponse.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);

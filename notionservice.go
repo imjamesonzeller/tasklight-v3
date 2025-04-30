@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/notionauth"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
+	"io"
 	"log"
+	"net/http"
 	"os/exec"
 	"runtime"
 )
@@ -46,9 +51,81 @@ func (n *NotionService) StartOAuth() {
 	openBrowser(url)
 }
 
-// TODO: Add Frontend function GetNotionDatabases so that we can display options
-// map[string]string is notionDBID to NotionDBName
+type Filter struct {
+	Value    string `json:"value"`
+	Property string `json:"property"`
+}
 
-func (n *NotionService) GetNotionDatabases() map[string]string {
-	return nil
+type NotionSearchRequest struct {
+	Filter Filter `json:"filter"`
+}
+
+type NotionDBResponse struct {
+	Results []DatabaseMinimal `json:"results"`
+}
+
+type DatabaseMinimal struct {
+	ID         string        `json:"id"`
+	Title      []RichTextObj `json:"title"`
+	Properties map[string]PropertyObj
+}
+
+type RichTextObj struct {
+	Text TextContent `json:"text"`
+}
+
+type TextContent struct {
+	Content string `json:"content"`
+}
+
+type PropertyObj struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
+	NotionSecret := config.AppConfig.NotionAccessToken
+	NotionSearchURL := "https://api.notion.com/v1/search"
+
+	println("Notion secret:", NotionSecret)
+
+	data := NotionSearchRequest{Filter{
+		Value:    "database",
+		Property: "object",
+	}}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := http.NewRequest("POST", NotionSearchURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	r.Header.Add("Authorization", "Bearer "+NotionSecret)
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("Notion-Version", "2022-06-28")
+
+	client := &http.Client{}
+	resp, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get databases, status %d, body: %s", resp.StatusCode, body)
+	}
+
+	var dbResp NotionDBResponse
+	if err := json.NewDecoder(resp.Body).Decode(&dbResp); err != nil {
+		return nil, err
+	}
+
+	return &dbResp, nil
 }

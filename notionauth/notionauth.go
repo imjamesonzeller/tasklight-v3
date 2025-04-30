@@ -3,19 +3,18 @@ package notionauth
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/imjamesonzeller/tasklight-v3/config"
-	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"io"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
-	//"net/url"
-	"encoding/base64"
+	"github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 )
 
 type NotionOAuthResponse struct {
@@ -35,6 +34,12 @@ type Owner struct {
 	Type      *string `json:"type,omitempty"`
 	Name      *string `json:"name,omitempty"`
 	AvatarURL *string `json:"avatar_url,omitempty"`
+}
+
+type NotionOAuthRequest struct {
+	GrantType   string `json:"grant_type"`
+	Code        string `json:"code"`
+	RedirectUri string `json:"redirect_uri"`
 }
 
 // StartLocalOAuthListener starts http server and handles shutting it down
@@ -106,12 +111,6 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 	}()
 
 	return srv
-}
-
-type NotionOAuthRequest struct {
-	GrantType   string `json:"grant_type"`
-	Code        string `json:"code"`
-	RedirectUri string `json:"redirect_uri"`
 }
 
 func exchangeCodeForToken(code string) (*NotionOAuthResponse, error) {

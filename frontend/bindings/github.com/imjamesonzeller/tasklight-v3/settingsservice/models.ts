@@ -6,7 +6,7 @@
 import {Create as $Create} from "@wailsio/runtime";
 
 export class FrontendSettings {
-    "selected_notion_db_name": string;
+    "notion_db_id": string;
     "use_open_ai": boolean;
     "theme": string;
     "launch_on_startup": boolean;
@@ -16,8 +16,8 @@ export class FrontendSettings {
 
     /** Creates a new FrontendSettings instance. */
     constructor($$source: Partial<FrontendSettings> = {}) {
-        if (!("selected_notion_db_name" in $$source)) {
-            this["selected_notion_db_name"] = "";
+        if (!("notion_db_id" in $$source)) {
+            this["notion_db_id"] = "";
         }
         if (!("use_open_ai" in $$source)) {
             this["use_open_ai"] = false;

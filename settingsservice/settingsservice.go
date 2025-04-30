@@ -40,13 +40,13 @@ type ApplicationSettings struct {
 }
 
 type FrontendSettings struct {
-	SelectedNotionDBName string `json:"selected_notion_db_name"`
-	UseOpenAI            bool   `json:"use_open_ai"`
-	Theme                string `json:"theme"`
-	LaunchOnStartup      bool   `json:"launch_on_startup"`
-	Hotkey               string `json:"hotkey"`
-	HasConnectedNotion   bool   `json:"has_notion_secret"`
-	HasOpenAIAPIKey      bool   `json:"has_openai_key"`
+	NotionDBID         string `json:"notion_db_id"`
+	UseOpenAI          bool   `json:"use_open_ai"`
+	Theme              string `json:"theme"`
+	LaunchOnStartup    bool   `json:"launch_on_startup"`
+	Hotkey             string `json:"hotkey"`
+	HasConnectedNotion bool   `json:"has_notion_secret"`
+	HasOpenAIAPIKey    bool   `json:"has_openai_key"`
 }
 
 // ====== Initializers ======
@@ -182,8 +182,12 @@ func (s *SettingsService) SaveSettings() {
 		_ = os.WriteFile(settingsFilePath, data, 0644)
 	}
 
-	_ = updateSecret(keychainNotionToken, s.AppSettings.NotionAccessToken)
-	_ = updateSecret(keychainOpenAIKey, s.AppSettings.OpenAIAPIKey)
+	if s.AppSettings.NotionAccessToken != "" {
+		_ = updateSecret(keychainNotionToken, s.AppSettings.NotionAccessToken)
+	}
+	if s.AppSettings.OpenAIAPIKey != "" {
+		_ = updateSecret(keychainOpenAIKey, s.AppSettings.OpenAIAPIKey)
+	}
 }
 
 // ====== Frontend Integration ======
@@ -193,7 +197,7 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 	frontend.UseOpenAI = s.AppSettings.UseOpenAI
 	frontend.Theme = s.AppSettings.Theme
 	frontend.LaunchOnStartup = s.AppSettings.LaunchOnStartup
-	frontend.SelectedNotionDBName = s.AppSettings.NotionDBID // Assume matched name for now
+	frontend.NotionDBID = s.AppSettings.NotionDBID
 
 	hotkeyJSON, err := s.AppSettings.Hotkey.MarshalJSON()
 	if err != nil {
@@ -228,6 +232,13 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 	var newSettings ApplicationSettings
 	_ = json.Unmarshal(data, &newSettings)
 	newSettings.Hotkey = hotkeyCfg
+
+	if newSettings.NotionAccessToken == "" {
+		newSettings.NotionAccessToken, _ = loadSecret(keychainNotionToken)
+	}
+	if newSettings.OpenAIAPIKey == "" {
+		newSettings.OpenAIAPIKey, _ = loadSecret(keychainOpenAIKey)
+	}
 
 	s.AppSettings = newSettings
 	s.SaveSettings()

@@ -167,6 +167,7 @@ body, html, #App {
     width: 100%;
     height: 100%;
     overflow: hidden; /* Prevent scrollbars */
+    --wails-draggable:no-drag
 }
 
 .spotlight-container {
@@ -177,6 +178,7 @@ body, html, #App {
     height: 100vh;
     background-color: transparent; /* Ensure no extra background */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --wails-draggable:no-drag
 }
 
 /* Search Box Styling */
