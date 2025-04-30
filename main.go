@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	_ "embed"
+	"fmt"
+	"github.com/imjamesonzeller/tasklight-v3/auth"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
@@ -125,9 +127,7 @@ func main() {
 	})
 
 	app.OnEvent("app:ready", func(e *application.CustomEvent) {
-		windowService.Show("main")
-		settingsService.LoadSettings()
-		config.Init(&settingsService.AppSettings)
+		OnStartup(windowService, settingsService, taskService)
 	})
 
 	// Register settings window factory
@@ -139,7 +139,7 @@ func main() {
 			Height:        500,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
-			URL:           "/#/settings", // route you’ll create in frontend
+			URL:           "/#/settings",
 		})
 	})
 
@@ -168,5 +168,20 @@ func main() {
 	// If an error occurred while running the application, log it and exit.
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func OnStartup(ws *WindowService, ss *settingsservice.SettingsService, ts *TaskService) {
+	ws.Show("main")
+	ss.LoadSettings()
+	config.Init(&ss.AppSettings)
+	auth.Init(config.GetEnv("TASKLIGHT_TOKEN_SECRET"))
+
+	identity, err := auth.LoadOrRegisterIdentity()
+	if err != nil {
+		log.Println("Failed to load or register identity:", err)
+	} else {
+		fmt.Println("Authenticated as:", identity.UserID)
+		ts.SetIdentity(identity)
 	}
 }

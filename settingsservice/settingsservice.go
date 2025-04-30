@@ -13,7 +13,7 @@ import (
 
 // ====== Constants ======
 const (
-	keychainService     = "Tasklight"
+	keychainService     = "com.tasklight.app"
 	keychainNotionToken = "NotionAccessToken"
 	keychainOpenAIKey   = "OpenAIAPISecret"
 	settingsFilePath    = "settings.json"
@@ -128,7 +128,7 @@ func saveSecret(label, value string) error {
 	return keychain.AddItem(item)
 }
 
-func loadSecret(label string) (string, error) {
+func LoadSecret(label string) (string, error) {
 	query := keychain.NewItem()
 	query.SetSecClass(keychain.SecClassGenericPassword)
 	query.SetService(keychainService)
@@ -146,7 +146,7 @@ func loadSecret(label string) (string, error) {
 	return string(results[0].Data), nil
 }
 
-func updateSecret(label, value string) error {
+func UpdateSecret(label, value string) error {
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
 	item.SetService(keychainService)
@@ -159,11 +159,11 @@ func updateSecret(label, value string) error {
 
 func (s *SettingsService) SaveNotionToken(token string) error {
 	println("Saving Notion Token: ", token)
-	return updateSecret(keychainNotionToken, token)
+	return UpdateSecret(keychainNotionToken, token)
 }
 
 func (s *SettingsService) SaveOpenAIKey(key string) error {
-	return updateSecret(keychainOpenAIKey, key)
+	return UpdateSecret(keychainOpenAIKey, key)
 }
 
 // ====== Settings Load/Save ======
@@ -174,8 +174,8 @@ func (s *SettingsService) LoadSettings() {
 		_ = json.Unmarshal(data, &s.AppSettings)
 	}
 
-	s.AppSettings.NotionAccessToken, _ = loadSecret(keychainNotionToken)
-	s.AppSettings.OpenAIAPIKey, _ = loadSecret(keychainOpenAIKey)
+	s.AppSettings.NotionAccessToken, _ = LoadSecret(keychainNotionToken)
+	s.AppSettings.OpenAIAPIKey, _ = LoadSecret(keychainOpenAIKey)
 }
 
 func (s *SettingsService) SaveSettings() {
@@ -190,10 +190,10 @@ func (s *SettingsService) SaveSettings() {
 	}
 
 	if s.AppSettings.NotionAccessToken != "" {
-		_ = updateSecret(keychainNotionToken, s.AppSettings.NotionAccessToken)
+		_ = UpdateSecret(keychainNotionToken, s.AppSettings.NotionAccessToken)
 	}
 	if s.AppSettings.OpenAIAPIKey != "" {
-		_ = updateSecret(keychainOpenAIKey, s.AppSettings.OpenAIAPIKey)
+		_ = UpdateSecret(keychainOpenAIKey, s.AppSettings.OpenAIAPIKey)
 	}
 }
 
@@ -216,10 +216,10 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 	}
 
 	// Load secret flags
-	if token, err := loadSecret(keychainNotionToken); err == nil && token != "" {
+	if token, err := LoadSecret(keychainNotionToken); err == nil && token != "" {
 		frontend.HasConnectedNotion = true
 	}
-	if key, err := loadSecret(keychainOpenAIKey); err == nil && key != "" {
+	if key, err := LoadSecret(keychainOpenAIKey); err == nil && key != "" {
 		frontend.HasOpenAIAPIKey = true
 	}
 
@@ -243,10 +243,10 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 	newSettings.Hotkey = hotkeyCfg
 
 	if newSettings.NotionAccessToken == "" {
-		newSettings.NotionAccessToken, _ = loadSecret(keychainNotionToken)
+		newSettings.NotionAccessToken, _ = LoadSecret(keychainNotionToken)
 	}
 	if newSettings.OpenAIAPIKey == "" {
-		newSettings.OpenAIAPIKey, _ = loadSecret(keychainOpenAIKey)
+		newSettings.OpenAIAPIKey, _ = LoadSecret(keychainOpenAIKey)
 	}
 
 	s.AppSettings = newSettings

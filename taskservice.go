@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/imjamesonzeller/tasklight-v3/auth"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -24,6 +25,7 @@ type TaskInformation struct {
 type TaskService struct {
 	app           *application.App
 	windowService *WindowService
+	identity      *auth.Identity
 }
 
 func NewTaskService(windowService *WindowService) *TaskService {
@@ -36,12 +38,67 @@ func (ts *TaskService) SetApp(app *application.App) {
 	ts.app = app
 }
 
+func (ts *TaskService) SetIdentity(identity *auth.Identity) {
+	ts.identity = identity
+}
+
+func (ts *TaskService) CanUseAI() (bool, int) {
+	if ts.identity == nil {
+		log.Println("No identity loaded")
+		return false, 0
+	}
+
+	url := fmt.Sprintf("https://api.jamesonzeller.com/check-usage?user_id=%s&auth_token=%s", ts.identity.UserID, ts.identity.AuthToken)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println("Failed to contact usage server: ", err)
+		return false, 0
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Allowed   bool `json:"allowed"`
+		Remaining int  `json:"remaining"`
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		log.Println("Failed to parse usage response: ", err)
+		return false, 0
+	}
+
+	return result.Allowed, result.Remaining
+}
+
+func (ts *TaskService) IncrementUsage() {
+	if ts.identity == nil {
+		log.Println("No identity loaded")
+		return
+	}
+
+	data := map[string]string{
+		"user_id":    ts.identity.UserID,
+		"auth_token": ts.identity.AuthToken,
+	}
+	jsonData, err := json.Marshal(data)
+
+	resp, err := http.Post("https://api.jamesonzeller.com/increment-usage", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Println("Failed to increment usage: ", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Println("Increment usage failed: ", string(body))
+	}
+}
+
 // ProcessMessage Called from frontend
 func (ts *TaskService) ProcessMessage(message string) {
-	//task := ts.ProcessedThroughAI(message)
-
-	// API PASS-THROUGH
-	task := TaskInformation{message, nil}
+	task := ts.ProcessedThroughAI(message)
 
 	status := ts.SendToNotion(task)
 
@@ -55,7 +112,10 @@ func (ts *TaskService) ProcessMessage(message string) {
 // --- Internals ---
 
 func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
-	// TODO: Add handling of No API key and failure of OpenAI request so it just sends input back.
+	allowed, _ := ts.CanUseAI()
+	if !allowed {
+		return TaskInformation{Title: input, Date: nil}
+	}
 
 	client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
 
@@ -75,16 +135,18 @@ func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
 		},
 	})
 	if err != nil {
-		panic(err)
+		log.Println("OpenAI call failed:", err)
+		return TaskInformation{Title: input, Date: nil}
 	}
 
-	// Extract and parse JSON
 	var task TaskInformation
 	err = json.Unmarshal([]byte(resp.Choices[0].Message.Content), &task)
 	if err != nil {
-		panic(err)
+		log.Println("Failed to parse AI output:", err)
+		return TaskInformation{Title: input, Date: nil}
 	}
 
+	ts.IncrementUsage()
 	return task
 }
 
