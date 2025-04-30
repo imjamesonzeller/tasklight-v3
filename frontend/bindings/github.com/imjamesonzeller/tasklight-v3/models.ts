@@ -8,7 +8,8 @@ import {Create as $Create} from "@wailsio/runtime";
 export class DatabaseMinimal {
     "id": string;
     "title": RichTextObj[];
-    "Properties": { [_: string]: PropertyObj };
+    "properties": { [_: string]: PropertyObj };
+    "has_multiple_date_props": boolean;
 
     /** Creates a new DatabaseMinimal instance. */
     constructor($$source: Partial<DatabaseMinimal> = {}) {
@@ -18,8 +19,11 @@ export class DatabaseMinimal {
         if (!("title" in $$source)) {
             this["title"] = [];
         }
-        if (!("Properties" in $$source)) {
-            this["Properties"] = {};
+        if (!("properties" in $$source)) {
+            this["properties"] = {};
+        }
+        if (!("has_multiple_date_props" in $$source)) {
+            this["has_multiple_date_props"] = false;
         }
 
         Object.assign(this, $$source);
@@ -35,8 +39,8 @@ export class DatabaseMinimal {
         if ("title" in $$parsedSource) {
             $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
         }
-        if ("Properties" in $$parsedSource) {
-            $$parsedSource["Properties"] = $$createField2_0($$parsedSource["Properties"]);
+        if ("properties" in $$parsedSource) {
+            $$parsedSource["properties"] = $$createField2_0($$parsedSource["properties"]);
         }
         return new DatabaseMinimal($$parsedSource as Partial<DatabaseMinimal>);
     }

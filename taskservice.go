@@ -106,7 +106,7 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 	}
 
 	if task.Date != nil {
-		properties["Due Date"] = map[string]interface{}{
+		properties[c.AppConfig.DatePropertyName] = map[string]interface{}{
 			"date": map[string]interface{}{
 				"start": *task.Date,
 			},

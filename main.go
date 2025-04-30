@@ -87,12 +87,13 @@ func main() {
 	allowDevTools := os.Getenv("WAILS_ENV") == "dev"
 
 	// Register main window factory
+	// TODO: Figure out how to make this undraggable
 	windowService.RegisterWindow("main", func() *application.WebviewWindow {
 		win := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
 			Name:            "main",
 			Title:           "Input Window",
-			Width:           550,
-			Height:          65,
+			Width:           600,
+			Height:          100,
 			Frameless:       true,
 			DisableResize:   true,
 			AlwaysOnTop:     true,
@@ -135,7 +136,7 @@ func main() {
 			Name:          "settings",
 			Title:         "Tasklight Settings",
 			Width:         400,
-			Height:        450,
+			Height:        500,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
 			URL:           "/#/settings", // route you’ll create in frontend

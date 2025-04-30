@@ -34,6 +34,10 @@ type ApplicationSettings struct {
 	LaunchOnStartup bool         `json:"launch_on_startup"`
 	Hotkey          hotkeyConfig `json:"hotkey"`
 
+	// ====== Date Property Shiznit ======
+	DatePropertyID   string `json:"date_property_id"`
+	DatePropertyName string `json:"date_property_name"`
+
 	// ====== Secrets ======
 	NotionAccessToken string `json:"notion_access_token,omitempty"`
 	OpenAIAPIKey      string `json:"openai_api_key,omitempty"`
@@ -47,6 +51,9 @@ type FrontendSettings struct {
 	Hotkey             string `json:"hotkey"`
 	HasConnectedNotion bool   `json:"has_notion_secret"`
 	HasOpenAIAPIKey    bool   `json:"has_openai_key"`
+
+	DatePropertyID   string `json:"date_property_id"`
+	DatePropertyName string `json:"date_property_name"`
 }
 
 // ====== Initializers ======
@@ -198,6 +205,8 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 	frontend.Theme = s.AppSettings.Theme
 	frontend.LaunchOnStartup = s.AppSettings.LaunchOnStartup
 	frontend.NotionDBID = s.AppSettings.NotionDBID
+	frontend.DatePropertyID = s.AppSettings.DatePropertyID
+	frontend.DatePropertyName = s.AppSettings.DatePropertyName
 
 	hotkeyJSON, err := s.AppSettings.Hotkey.MarshalJSON()
 	if err != nil {

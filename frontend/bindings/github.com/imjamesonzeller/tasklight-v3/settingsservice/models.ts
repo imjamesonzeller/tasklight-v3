@@ -13,6 +13,8 @@ export class FrontendSettings {
     "hotkey": string;
     "has_notion_secret": boolean;
     "has_openai_key": boolean;
+    "date_property_id": string;
+    "date_property_name": string;
 
     /** Creates a new FrontendSettings instance. */
     constructor($$source: Partial<FrontendSettings> = {}) {
@@ -36,6 +38,12 @@ export class FrontendSettings {
         }
         if (!("has_openai_key" in $$source)) {
             this["has_openai_key"] = false;
+        }
+        if (!("date_property_id" in $$source)) {
+            this["date_property_id"] = "";
+        }
+        if (!("date_property_name" in $$source)) {
+            this["date_property_name"] = "";
         }
 
         Object.assign(this, $$source);

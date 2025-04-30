@@ -65,9 +65,10 @@ type NotionDBResponse struct {
 }
 
 type DatabaseMinimal struct {
-	ID         string        `json:"id"`
-	Title      []RichTextObj `json:"title"`
-	Properties map[string]PropertyObj
+	ID                   string                 `json:"id"`
+	Title                []RichTextObj          `json:"title"`
+	Properties           map[string]PropertyObj `json:"properties"`
+	HasMultipleDateProps bool                   `json:"has_multiple_date_props"`
 }
 
 type RichTextObj struct {
@@ -125,6 +126,28 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 	var dbResp NotionDBResponse
 	if err := json.NewDecoder(resp.Body).Decode(&dbResp); err != nil {
 		return nil, err
+	}
+
+	for i := range dbResp.Results {
+		db := &dbResp.Results[i]
+
+		var dateProps []PropertyObj
+		for _, prop := range db.Properties {
+			if prop.Type == "date" {
+				dateProps = append(dateProps, prop)
+			}
+		}
+
+		log.Printf("Found %d date properties in DB %s", len(dateProps), db.ID)
+		if len(dateProps) == 1 {
+			if len(dateProps) == 1 && db.ID == n.settingsservice.AppSettings.NotionDBID {
+				n.settingsservice.AppSettings.DatePropertyID = dateProps[0].ID
+				n.settingsservice.AppSettings.DatePropertyName = dateProps[0].Name
+				n.settingsservice.SaveSettings()
+			}
+		} else if len(dateProps) > 1 {
+			db.HasMultipleDateProps = true
+		}
 	}
 
 	return &dbResp, nil
