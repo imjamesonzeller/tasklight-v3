@@ -1,59 +1,81 @@
-# Welcome to Your New Wails3 Project!
+# Tasklight
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+**Tasklight** is a minimalist macOS app inspired by Spotlight, built to make task entry as fast and seamless as possible. Using a global hotkey, you can instantly open a lightweight input bar, type a natural language task like “Finish essay by Friday,” and have it automatically parsed and added to your Notion database.
 
-## Getting Started
+---
 
-1. Navigate to your project directory in the terminal.
+## 🧠 Purpose
 
-2. To run your application in development mode, use the following command:
+Tasklight was created to reduce the friction of capturing tasks. Rather than switching apps or losing focus, you can log tasks directly from anywhere on your system with just a keyboard shortcut. It’s perfect for fast-paced workflows and thought capture.
 
-   ```
-   wails3 dev
-   ```
+---
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+## ✨ Features
 
-3. To build your application for production, use:
+- Global hotkey to summon a Spotlight-style input window
+- Transparent, always-on-top, distraction-free interface
+- Natural language input processed with GPT (OpenAI)
+- Automatically creates structured tasks in your connected Notion database
+- Built-in settings window for updating your Notion/OpenAI configuration
+- Secure local storage of secrets (using Apple Keychain)
+- Notion OAuth integration — no manual token entry needed
+- Select from your existing Notion databases in-app
+- Keyboard-driven UI with instant show/hide and submission
+- Clean, minimal UI with subtle animations
 
-   ```
-   wails3 build
-   ```
+> **⚠️ AI Usage Disclaimer:**  
+> Tasklight's AI-powered natural language parsing is currently **unavailable**. Support for AI task processing will return in a future update as part of a new system that includes **Bring Your Own Key (BYOK)** support and optional usage tiers. Stay tuned!
 
-   This will create a production-ready executable in the `build` directory.
+---
 
-## Exploring Wails3 Features
+## ⚙️ Tech Stack
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+- **Wails v3** – Native macOS app framework (Go + Web)
+- **Go** – Backend logic, Notion API, and global hotkey handling
+- **React** – Frontend interface
+- **OpenAI GPT-4o** – Parses task input into structured Notion-compatible data
+- **Notion API** – For reading and writing task data
+- **Apple Keychain** – Securely stores credentials locally
+- **golang.design/x/hotkey** – Enables global macOS hotkey
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+---
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+## 💡 Inspiration
 
-   ```
-   go run .
-   ```
+This project was inspired by [Coding With Lewis](https://youtu.be/lhjgj45x66Y?si=WroHyV6KREMvTNdW), who demonstrated a similar productivity concept. Tasklight builds on that foundation with added intelligence, Notion integration, and a refined user experience.
 
-   Note: Some examples may be under development during the alpha phase.
+---
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3alpha.wails.io/) for in-depth guides and API references.
+## 🚀 Usage
 
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+1. Press `Ctrl + Space` (or your configured shortcut) to launch the input window.
+2. Type a task in natural language.
+3. Press `Enter` to send it to your selected Notion database.
+4. Press `Escape` to hide the window anytime.
 
-## Project Structure
+---
 
-Take a moment to familiarize yourself with your project structure:
+## 📦 Configuration
 
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
+Tasklight handles authentication and configuration directly within the app:
 
-## Next Steps
+- 🔐 Secrets like your Notion integration token and OpenAI key are stored securely via Apple Keychain.
+- 📚 Select your Notion database from a list after authenticating via OAuth.
+- ⚙️ Configure your global hotkey and view current settings via the Settings window.
 
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
+---
 
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+## 🔭 Future Plans
+
+Planned improvements and additions:
+
+- Usage quotas and optional tiered AI usage plans (e.g. 5 tasks/day free, unlimited with subscription)
+- Offline fallback with local task queueing
+- Recurring task parsing and smart tagging
+- Optional dark/light mode toggle
+- Task history viewer
+- Integration with more platforms beyond Notion (e.g. Todoist, Google Tasks)
+
+---
+
+Made using Go, React, GPT, and a little obsession with clean interfaces.

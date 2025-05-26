@@ -117,6 +117,12 @@ func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
 	//	return TaskInformation{Title: input, Date: nil}
 	//}
 
+	// Hard code early return until AI Usage is available
+	development := true
+	if development {
+		return TaskInformation{Title: input, Date: nil}
+	}
+
 	//client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
 	client := openai.NewClient(option.WithAPIKey(c.GetEnv("OPENAI_API_KEY")))
 
