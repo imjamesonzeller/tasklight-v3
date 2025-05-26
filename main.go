@@ -3,8 +3,6 @@ package main
 import (
 	"embed"
 	_ "embed"
-	"fmt"
-	"github.com/imjamesonzeller/tasklight-v3/auth"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
@@ -175,13 +173,13 @@ func OnStartup(ws *WindowService, ss *settingsservice.SettingsService, ts *TaskS
 	ws.Show("main")
 	ss.LoadSettings()
 	config.Init(&ss.AppSettings)
-	auth.Init(config.GetEnv("TASKLIGHT_TOKEN_SECRET"))
-
-	identity, err := auth.LoadOrRegisterIdentity()
-	if err != nil {
-		log.Println("Failed to load or register identity:", err)
-	} else {
-		fmt.Println("Authenticated as:", identity.UserID)
-		ts.SetIdentity(identity)
-	}
+	//auth.Init(config.GetEnv("TASKLIGHT_TOKEN_SECRET"))
+	//
+	//identity, err := auth.LoadOrRegisterIdentity()
+	//if err != nil {
+	//	log.Println("Failed to load or register identity:", err)
+	//} else {
+	//	fmt.Println("Authenticated as:", identity.UserID)
+	//	ts.SetIdentity(identity)
+	//}
 }

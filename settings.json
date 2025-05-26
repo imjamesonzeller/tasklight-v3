@@ -1,7 +1,7 @@
 {
   "notion_db_id": "383875b3-347e-4089-b7c6-9a123b96cd81",
   "use_open_ai": true,
-  "theme": "dark",
+  "theme": "light",
   "launch_on_startup": true,
   "hotkey": {
     "Modifiers": [
@@ -9,6 +9,6 @@
     ],
     "Key": 49
   },
-  "date_property_id": "RUYf",
+  "date_property_id": "Due Date",
   "date_property_name": "Due Date"
 }

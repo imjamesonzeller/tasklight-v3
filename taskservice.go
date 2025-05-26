@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	c "github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/openai/openai-go/option"
 	"io"
 	"log"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/imjamesonzeller/tasklight-v3/auth"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -112,12 +112,13 @@ func (ts *TaskService) ProcessMessage(message string) {
 // --- Internals ---
 
 func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
-	allowed, _ := ts.CanUseAI()
-	if !allowed {
-		return TaskInformation{Title: input, Date: nil}
-	}
+	//allowed, _ := ts.CanUseAI()
+	//if !allowed {
+	//	return TaskInformation{Title: input, Date: nil}
+	//}
 
-	client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
+	//client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
+	client := openai.NewClient(option.WithAPIKey(c.GetEnv("OPENAI_API_KEY")))
 
 	today := time.Now().Format("2006-01-02") // ISO 8601 format
 	prompt := fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to parse natural language
