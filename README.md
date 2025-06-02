@@ -4,6 +4,7 @@
 
 > **⚠️ Walkthrough & Instructions:**  
 > Video demo and walkthrough along with install instructions and documention coming soon.
+<br><br>You can find current state walkthrough here: [Link](https://youtu.be/O9q4PnzKJlg)
 ---
 
 ## 🧠 Purpose
