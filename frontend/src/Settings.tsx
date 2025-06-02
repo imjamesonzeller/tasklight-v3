@@ -6,6 +6,7 @@ import {
 } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css";
 import { Events } from '@wailsio/runtime';
+import { PauseHotkey, ResumeHotkey } from "../bindings/github.com/imjamesonzeller/tasklight-v3/hotkeyservice.ts";
 
 type SelectNotionDBProps = {
     databases: DatabaseMinimal[];
@@ -49,6 +50,7 @@ export default function Settings() {
     const [notionDBs, setNotionDBs] = useState<DatabaseMinimal[]>([]);
     const [hasMultipleDateProps, setHasMultipleDateProps] = useState(false);
     const [dateValid, setDateValid] = useState(true);
+    const [recordingHotkey, setRecordingHotkey] = useState(false)
 
     useEffect(() => {
         s.GetSettings()
@@ -155,6 +157,58 @@ export default function Settings() {
         }
     };
 
+    const startRecordingHotkey = async () => {
+        setRecordingHotkey(true);
+        setStatus("⌨️ Waiting for hotkey...");
+
+        await PauseHotkey();
+
+        const pressedKeys = new Set<string>();
+        const modifiers = new Set<string>();
+
+        const keyMap: Record<string, string> = {
+            Control: "ctrl",
+            Meta: "cmd",
+            Alt: "option",
+            Shift: "shift",
+        };
+
+        const downHandler = (e: KeyboardEvent) => {
+            e.preventDefault();
+
+            if (e.ctrlKey) modifiers.add("ctrl");
+            if (e.metaKey) modifiers.add("cmd");
+            if (e.altKey) modifiers.add("option");
+            if (e.shiftKey) modifiers.add("shift");
+
+            const key = e.key;
+
+            if (!keyMap[key] && key != " ") {
+                pressedKeys.add(key.toLowerCase());
+            } else if (key == " ") {
+                pressedKeys.add("space")
+            }
+        };
+
+        const upHandler = async (_e: KeyboardEvent) => {
+            if (pressedKeys.size === 0) return;
+
+            const combo = [...modifiers, ...pressedKeys].join("+");
+
+            setSettings((prev) => ({ ...prev, hotkey: combo }));
+            setStatus(`✅ Hotkey set to ${combo}`);
+            setRecordingHotkey(false);
+
+            window.removeEventListener("keydown", downHandler);
+            window.removeEventListener("keyup", upHandler);
+
+            await ResumeHotkey();
+        };
+
+        window.addEventListener("keydown", downHandler);
+        window.addEventListener("keyup", upHandler);
+    };
+
     return (
         <div className="settings-container">
             <h1 className="settings-title">Settings</h1>
@@ -179,7 +233,12 @@ export default function Settings() {
 
             <div>
                 <label>Hotkey:</label>
-                <input type="text" name="hotkey" value={settings.hotkey} onChange={handleChange} />
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                    <input id="hotkeyInput" type="text" name="hotkey" value={settings.hotkey} onChange={handleChange} disabled={true}/>
+                    <button onClick={startRecordingHotkey}>
+                        {recordingHotkey ? "Press keys..." : "Set Hotkey"}
+                    </button>
+                </div>
             </div>
 
             <div>

@@ -49,3 +49,11 @@
     font-size: 0.875rem;
     color: #374151; /* gray-700 */
 }
+
+#hotkeyInput:disabled {
+    opacity: 1;
+    color: inherit;
+    background-color: inherit;
+    border: 1px solid #ccc;
+    cursor: default;
+}

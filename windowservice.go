@@ -82,6 +82,7 @@ func (s *WindowService) ToggleVisibility(id string) {
 		if win.IsVisible() {
 			win.Hide()
 		} else {
+			println("Showing window:", id)
 			win.Show()
 			win.Focus()
 		}

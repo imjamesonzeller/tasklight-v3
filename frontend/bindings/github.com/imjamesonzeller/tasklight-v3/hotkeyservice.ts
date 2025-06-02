@@ -8,6 +8,27 @@ import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as application$0 from "../../wailsapp/wails/v3/pkg/application/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as hotkey$0 from "../../../golang.design/x/hotkey/models.js";
+
+export function PauseHotkey(): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(2845754025) as any;
+    return $resultPromise;
+}
+
+/**
+ * internal: Registers a hotkey and starts its listener goroutine
+ */
+export function RegisterHotkey(hk: hotkey$0.Hotkey | null): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(1440306376, hk) as any;
+    return $resultPromise;
+}
+
+export function ResumeHotkey(): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(1924576098) as any;
+    return $resultPromise;
+}
 
 export function SetApp(app: application$0.App | null): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(1245702848, app) as any;
@@ -16,5 +37,10 @@ export function SetApp(app: application$0.App | null): Promise<void> & { cancel(
 
 export function StartHotkeyListener(): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(3811657959) as any;
+    return $resultPromise;
+}
+
+export function UpdateHotkey(): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(4150741180) as any;
     return $resultPromise;
 }

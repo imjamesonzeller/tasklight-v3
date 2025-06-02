@@ -8,6 +8,7 @@ import (
 
 	"github.com/keybase/go-keychain"
 	"github.com/wailsapp/wails/v3/pkg/application"
+
 	"golang.design/x/hotkey"
 )
 
@@ -251,5 +252,9 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 
 	s.AppSettings = newSettings
 	s.SaveSettings()
+
+	// Emit settings saved event so hotkey can catch it and
+	s.App.EmitEvent("Backend:SettingsUpdated", nil)
+
 	return nil
 }

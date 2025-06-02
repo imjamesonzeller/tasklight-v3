@@ -12,11 +12,11 @@ func Setup(app *application.App, windowService WindowServiceInterface, trayIcon 
 	menu.Add("Show").OnClick(func(_ *application.Context) {
 		windowService.Show("main")
 	})
-	menu.Add("Quit").OnClick(func(_ *application.Context) {
-		app.Quit()
-	})
 	menu.Add("Settings").OnClick(func(_ *application.Context) {
 		windowService.Show("settings")
+	})
+	menu.Add("Quit").OnClick(func(_ *application.Context) {
+		app.Quit()
 	})
 
 	tray.SetMenu(menu)

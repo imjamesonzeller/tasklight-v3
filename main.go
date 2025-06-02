@@ -36,9 +36,9 @@ func main() {
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
-	hotkeyService := NewHotkeyService(windowService)
 	taskService := NewTaskService(windowService)
 	settingsService := settingsservice.NewSettingsService()
+	hotkeyService := NewHotkeyService(windowService, settingsService)
 	notionService := NewNotionService(settingsService)
 
 	// Create a new Wails application by providing the necessary options.
@@ -134,7 +134,7 @@ func main() {
 			Name:          "settings",
 			Title:         "Tasklight Settings",
 			Width:         400,
-			Height:        500,
+			Height:        525,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
 			URL:           "/#/settings",
