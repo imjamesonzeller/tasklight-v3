@@ -127,10 +127,12 @@ func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
 	client := openai.NewClient(option.WithAPIKey(c.GetEnv("OPENAI_API_KEY")))
 
 	today := time.Now().Format("2006-01-02") // ISO 8601 format
-	prompt := fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to parse natural language
-                                  task descriptions into structured data.
+	prompt := fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
+                                  task descriptions into clean, structured data.
                                   Today's date is is %s.
-                                  Extract the task title and date from this sentence: "%s".
+                                  Parse the following sentence: "%s".
+								  Ignore phrases like "remind me to", "remind me on", or similar expressions,
+								  only focus on the task and date.
                                   Return only a JSON object in this exact format: { "title": ..., "date": ... }.
                                   If no date is mentioned, set the "date" value to null.
                                   The date should be in ISO 8601 format when present.`, today, input)

@@ -92,6 +92,7 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 		if err != nil {
 			return
 		}
+		s.AppSettings.NotionAccessToken = token.AccessToken
 
 		// Respond to user
 		fmt.Fprintln(w, "<html><body><h2>✅ Linked! You may close this tab.</h2></body></html>")
