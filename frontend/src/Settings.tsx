@@ -5,6 +5,7 @@ import {
     NotionService as n
 } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css";
+import { Events } from '@wailsio/runtime';
 
 type SelectNotionDBProps = {
     databases: DatabaseMinimal[];
@@ -114,9 +115,15 @@ export default function Settings() {
         try {
             setStatus("🔄 Connecting to Notion...");
             await n.StartOAuth();
+        } catch (err: any) {
+            setStatus("❌ Failed to connect Notion: " + (err.message ?? String(err)));
+        }
+    };
 
-            // Timeout to allow for settings save
-            setTimeout(async () => {
+    useEffect(() => {
+        Events.On("Backend:NotionAccessToken", async (ev) => {
+            const success = ev.data as boolean
+            if (success) {
                 try {
                     const updatedSettings = await s.GetSettings();
                     setSettings(updatedSettings);
@@ -126,13 +133,13 @@ export default function Settings() {
 
                     setStatus("✅ Notion connected and databases loaded.");
                 } catch (err: any) {
-                    setStatus("❌ Failed to refresh after Notion connect: " + err.messages);
+                    setStatus("❌ Notion connected, but failed to refresh: " + (err.message ?? String(err)));
                 }
-            }, 1500)
-        } catch (err:any) {
-            setStatus("❌ Failed to connect Notion: " + err.messages);
-        }
-    }
+            } else {
+                setStatus("❌ Failed to connect Notion.");
+            }
+        });
+    }, []);
 
     const getNotionDBs = async () => {
         const res = await n.GetNotionDatabases();

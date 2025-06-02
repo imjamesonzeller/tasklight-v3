@@ -22,7 +22,7 @@ const (
 // ====== Structs ======
 
 type SettingsService struct {
-	app               *application.App
+	App               *application.App
 	AppSettings       ApplicationSettings
 	FrontendOverrides FrontendSettings
 }
@@ -65,7 +65,7 @@ func NewSettingsService() *SettingsService {
 }
 
 func (s *SettingsService) SetApp(app *application.App) {
-	s.app = app
+	s.App = app
 }
 
 // ====== Hotkey ======

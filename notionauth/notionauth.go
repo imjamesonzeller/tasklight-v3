@@ -51,9 +51,9 @@ func StartLocalOAuthListener(settings *settingsservice.SettingsService) {
 	httpServerExitDone.Add(1)
 	srv := startHttpServer(httpServerExitDone, settings)
 
-	log.Printf("main: serving for 10 seconds")
+	log.Printf("main: serving for 120 seconds")
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(120 * time.Second)
 
 	log.Printf("main: stopping HTTP server")
 
@@ -74,6 +74,7 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			http.Error(w, "Missing code", http.StatusBadRequest)
+			s.App.EmitEvent("Backend:NotionAccessToken", false)
 			return
 		}
 
@@ -84,15 +85,20 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 		if err != nil {
 			http.Error(w, "Token exchange failed: "+err.Error(), http.StatusInternalServerError)
 			log.Println("Token exchange failed:", err)
+			s.App.EmitEvent("Backend:NotionAccessToken", false)
 			return
 		}
 
 		// Handle the token, saving etc.
 		err = s.SaveNotionToken(token.AccessToken)
 		if err != nil {
+			s.App.EmitEvent("Backend:NotionAccessToken", false)
 			return
 		}
 		s.AppSettings.NotionAccessToken = token.AccessToken
+
+		// Emit event to notify frontend to refresh
+		s.App.EmitEvent("Backend:NotionAccessToken", true)
 
 		// Respond to user
 		fmt.Fprintln(w, "<html><body><h2>✅ Linked! You may close this tab.</h2></body></html>")
