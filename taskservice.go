@@ -96,35 +96,41 @@ func (ts *TaskService) IncrementUsage() {
 	}
 }
 
+func (ts *TaskService) UseAI() bool {
+	if !c.AppConfig.UseOpenAI {
+		return false
+	}
+
+	if c.AppConfig.OpenAIAPIKey == "" {
+		return false
+	}
+
+	return true
+}
+
 // ProcessMessage Called from frontend
 func (ts *TaskService) ProcessMessage(message string) {
-	task := ts.ProcessedThroughAI(message)
+	ts.windowService.ToggleVisibility("main")
 
-	status := ts.SendToNotion(task)
+	go func() {
+		task := ts.ProcessedThroughAI(message)
+		status := ts.SendToNotion(task)
 
-	if status != "200 OK" {
-		ts.app.EmitEvent("Backend:ErrorEvent", status)
-	} else {
-		ts.windowService.ToggleVisibility("main")
-	}
+		if status != "200 OK" {
+			ts.app.EmitEvent("Backend:ErrorEvent", status)
+			ts.windowService.ToggleVisibility("main")
+		}
+	}()
 }
 
 // --- Internals ---
 
 func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
-	//allowed, _ := ts.CanUseAI()
-	//if !allowed {
-	//	return TaskInformation{Title: input, Date: nil}
-	//}
-
-	// Hard code early return until AI Usage is available
-	development := true
-	if development {
+	if !ts.UseAI() {
 		return TaskInformation{Title: input, Date: nil}
 	}
 
-	//client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
-	client := openai.NewClient(option.WithAPIKey(c.GetEnv("OPENAI_API_KEY")))
+	client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
 
 	today := time.Now().Format("2006-01-02") // ISO 8601 format
 	prompt := fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
@@ -155,7 +161,6 @@ func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
 		return TaskInformation{Title: input, Date: nil}
 	}
 
-	ts.IncrementUsage()
 	return task
 }
 

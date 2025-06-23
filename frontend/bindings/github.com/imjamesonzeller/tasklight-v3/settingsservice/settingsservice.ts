@@ -13,6 +13,11 @@ import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/model
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function ClearOpenAIKey(): Promise<void> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(836461708) as any;
+    return $resultPromise;
+}
+
 export function GetSettings(): Promise<$models.FrontendSettings> & { cancel(): void } {
     let $resultPromise = $Call.ByID(1299891847) as any;
     let $typingPromise = $resultPromise.then(($result: any) => {

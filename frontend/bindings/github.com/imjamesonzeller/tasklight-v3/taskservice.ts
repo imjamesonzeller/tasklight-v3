@@ -58,5 +58,10 @@ export function SetIdentity(identity: auth$0.Identity | null): Promise<void> & {
     return $resultPromise;
 }
 
+export function UseAI(): Promise<boolean> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(174667449) as any;
+    return $resultPromise;
+}
+
 // Private type creation functions
 const $$createType0 = $models.TaskInformation.createFrom;

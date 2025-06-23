@@ -51,6 +51,7 @@ export default function Settings() {
     const [hasMultipleDateProps, setHasMultipleDateProps] = useState(false);
     const [dateValid, setDateValid] = useState(true);
     const [recordingHotkey, setRecordingHotkey] = useState(false)
+    const [openAIKey, setOpenAIKey] = useState("PLACEHOLDER_API_KEY")
 
     useEffect(() => {
         s.GetSettings()
@@ -107,7 +108,20 @@ export default function Settings() {
         }));
     };
 
+    const handleOpenAIChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const value = e.target.value;
+
+        setOpenAIKey(value);
+    }
+
     const saveSettings = () => {
+        if (settings.use_open_ai && (openAIKey === "")) {
+            setStatus("❌ Please enter a valid OpenAI API key.");
+            return;
+        }
+
+        saveOpenAI();
+
         s.UpdateSettingsFromFrontend(settings)
             .then(() => setStatus("✅ Settings saved."))
             .catch((err) => setStatus("❌ Failed to save settings: " + err.message));
@@ -156,6 +170,32 @@ export default function Settings() {
             setHasMultipleDateProps(false);
         }
     };
+
+    const resetOpenAI = () => {
+        setOpenAIKey("")
+        // Call backend clear function
+        s.ClearOpenAIKey()
+            .then(() => setStatus("✅ OpenAI Key clear."))
+            .catch((err) => setStatus("❌ Failed to clear OpenAI Key: " + err.message));
+
+        return;
+    }
+
+    const saveOpenAI = () => {
+        if (openAIKey === "") {
+            setStatus("❌ Please enter a valid OpenAI API key.");
+            return;
+        } else if (openAIKey === "PLACEHOLDER_API_KEY") {
+            return;
+        }
+
+        // Call backend save function
+        s.SaveOpenAIKey(openAIKey)
+            .then(() => setStatus("✅ OpenAI Key saved."))
+            .catch((err) => setStatus("❌ Failed to save OpenAI Key: " + err.message));
+
+        return;
+    }
 
     const startRecordingHotkey = async () => {
         setRecordingHotkey(true);
@@ -246,6 +286,25 @@ export default function Settings() {
                 <input type="checkbox" name="use_open_ai" checked={settings.use_open_ai} onChange={handleChange} />
             </div>
 
+            {settings.use_open_ai && (
+                <div>
+                    <label>Open AI API Key:</label>
+                    <div style={{ display: "flex", gap: "1rem", alignItems: "center"}}>
+                        <input
+                            type={"password"}
+                            name={"openai_api_key"}
+                            id={"openaikey"}
+                            onChange={handleOpenAIChange}
+                            value={
+                                settings.has_openai_key ? "PLACEHOLDER_API_KEY" : openAIKey
+                            }
+                        />
+                        <button onClick={resetOpenAI}>Reset Key</button>
+                        <button onClick={saveOpenAI}>Save Key</button>
+                    </div>
+                </div>
+            )}
+
             <div>
                 <label>Connected to Notion:</label>
                 <span>{settings.has_notion_secret ? "✅" : "❌"}</span>
@@ -297,11 +356,6 @@ export default function Settings() {
                 ) : (
                     <span>{settings.date_property_name || "(No date selected)"}</span>
                 )}
-            </div>
-
-            <div>
-                <label>Connected to OpenAI:</label>
-                <span>{settings.has_openai_key ? "✅" : "❌"}</span>
             </div>
 
             {!dateValid && (

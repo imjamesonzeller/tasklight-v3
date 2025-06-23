@@ -148,23 +148,37 @@ func LoadSecret(label string) (string, error) {
 }
 
 func UpdateSecret(label, value string) error {
+	_ = clearSecret(label)
+	return saveSecret(label, value)
+}
+
+func clearSecret(label string) error {
 	item := keychain.NewItem()
 	item.SetSecClass(keychain.SecClassGenericPassword)
 	item.SetService(keychainService)
 	item.SetAccount(label)
-	_ = keychain.DeleteItem(item)
-	return saveSecret(label, value)
+	return keychain.DeleteItem(item)
 }
 
 // ====== Secret Setters ======
 
 func (s *SettingsService) SaveNotionToken(token string) error {
-	println("Saving Notion Token: ", token)
 	return UpdateSecret(keychainNotionToken, token)
 }
 
 func (s *SettingsService) SaveOpenAIKey(key string) error {
-	return UpdateSecret(keychainOpenAIKey, key)
+	err := UpdateSecret(keychainOpenAIKey, key)
+	if err != nil {
+		return err
+	}
+
+	s.AppSettings.OpenAIAPIKey = key
+
+	return nil
+}
+
+func (s *SettingsService) ClearOpenAIKey() error {
+	return clearSecret(keychainOpenAIKey)
 }
 
 // ====== Settings Load/Save ======
