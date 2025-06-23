@@ -51,7 +51,7 @@ export default function Settings() {
     const [hasMultipleDateProps, setHasMultipleDateProps] = useState(false);
     const [dateValid, setDateValid] = useState(true);
     const [recordingHotkey, setRecordingHotkey] = useState(false)
-    const [openAIKey, setOpenAIKey] = useState("PLACEHOLDER_API_KEY")
+    const [openAIKey, setOpenAIKey] = useState("")
 
     useEffect(() => {
         s.GetSettings()
@@ -173,6 +173,12 @@ export default function Settings() {
 
     const resetOpenAI = () => {
         setOpenAIKey("")
+
+        setSettings((prev) => ({
+            ...prev,
+            has_openai_key: false
+        }));
+
         // Call backend clear function
         s.ClearOpenAIKey()
             .then(() => setStatus("✅ OpenAI Key clear."))
@@ -188,6 +194,11 @@ export default function Settings() {
         } else if (openAIKey === "PLACEHOLDER_API_KEY") {
             return;
         }
+
+        setSettings((prev) => ({
+            ...prev,
+            has_openai_key: true
+        }));
 
         // Call backend save function
         s.SaveOpenAIKey(openAIKey)

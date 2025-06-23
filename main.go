@@ -87,7 +87,6 @@ func main() {
 	allowDevTools := os.Getenv("WAILS_ENV") == "dev"
 
 	// Register main window factory
-	// TODO: Figure out how to make this undraggable
 	windowService.RegisterWindow("main", func() *application.WebviewWindow {
 		win := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
 			Name:            "main",
@@ -99,14 +98,14 @@ func main() {
 			AlwaysOnTop:     true,
 			DevToolsEnabled: allowDevTools,
 			Mac: application.MacWindow{
-				InvisibleTitleBarHeight: 50,
+				InvisibleTitleBarHeight: 0,
 				Backdrop:                application.MacBackdropTransparent,
 				TitleBar: application.MacTitleBar{
 					AppearsTransparent:   true,
 					Hide:                 true,
 					HideTitle:            true,
 					FullSizeContent:      true,
-					UseToolbar:           true,
+					UseToolbar:           false,
 					HideToolbarSeparator: true,
 				},
 			},
@@ -134,7 +133,7 @@ func main() {
 			Name:          "settings",
 			Title:         "Tasklight Settings",
 			Width:         400,
-			Height:        525,
+			Height:        550,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
 			URL:           "/#/settings",
@@ -152,7 +151,6 @@ func main() {
 	}()
 
 	// Creation of Tray Menu
-	// TODO: Make this actually useful with like a settings menu thing
 	tray.Setup(app, windowService, trayIcon)
 
 	// Run the application. This blocks until the application has been exited.

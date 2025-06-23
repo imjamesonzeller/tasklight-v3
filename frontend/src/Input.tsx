@@ -81,11 +81,11 @@ function Input() {
     }, []);
 
     return (
-        <div className="spotlight-container">
-            <div className="spotlight-box">
+        <div className="spotlight-container undraggable">
+            <div className="spotlight-box undraggable">
                 <input
                     ref={inputRef}
-                    className="spotlight-input"
+                    className="spotlight-input undraggable"
                     type="text"
                     placeholder="Type your task..."
                     value={name}
@@ -95,7 +95,7 @@ function Input() {
                 />
             </div>
 
-            {resultText && <div className="spotlight-results">{resultText}</div>}
+            {resultText && <div className="spotlight-results undraggable">{resultText}</div>}
         </div>
     );
 }

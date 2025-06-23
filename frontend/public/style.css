@@ -159,7 +159,6 @@
 /*    background-color: rgba(255, 255, 255, 1);*/
 /*}*/
 
-
 body, html, #App {
     background-color: transparent; /* Transparent background */
     margin: 0;
@@ -167,7 +166,15 @@ body, html, #App {
     width: 100%;
     height: 100%;
     overflow: hidden; /* Prevent scrollbars */
-    --wails-draggable:no-drag
+    --wails-draggable:no-drag;
+}
+
+.undraggable {
+    -webkit-user-select: none; /* Safari, Chrome */
+    -webkit-user-drag: none;
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE */
+    user-select: none; /* CSS3 */
 }
 
 .spotlight-container {
@@ -178,7 +185,7 @@ body, html, #App {
     height: 100vh;
     background-color: transparent; /* Ensure no extra background */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --wails-draggable:no-drag
+    --wails-draggable:no-drag;
 }
 
 /* Search Box Styling */
