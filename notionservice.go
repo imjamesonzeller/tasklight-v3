@@ -138,7 +138,6 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 			}
 		}
 
-		log.Printf("Found %d date properties in DB %s", len(dateProps), db.ID)
 		if len(dateProps) == 1 {
 			if len(dateProps) == 1 && db.ID == n.settingsservice.AppSettings.NotionDBID {
 				n.settingsservice.AppSettings.DatePropertyID = dateProps[0].ID
@@ -151,4 +150,46 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 	}
 
 	return &dbResp, nil
+}
+
+func (n *NotionService) GetNotionWorkspaceId() (string, error) {
+	notionToken := config.AppConfig.NotionAccessToken
+	if notionToken == "" {
+		return "", fmt.Errorf("Notion access token is empty")
+	}
+
+	req, err := http.NewRequest("GET", "https://api.notion.com/v1/users/me", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+notionToken)
+	req.Header.Add("Notion-Version", "2022-06-28")
+
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("/v1/users/me failed: status %d, body: %s", resp.StatusCode, body)
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+
+	idValue, ok := payload["id"]
+	if !ok {
+		return "", fmt.Errorf("id not found in response")
+	}
+
+	idStr, ok := idValue.(string)
+	if !ok {
+		return "", fmt.Errorf("id field is not a string")
+	}
+
+	return idStr, nil
 }

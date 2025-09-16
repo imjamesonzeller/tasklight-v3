@@ -10,6 +10,16 @@ import (
 
 var AppConfig *settingsservice.ApplicationSettings
 
+var currentUserId string
+
+func SetCurrentUserId(id string) {
+	currentUserId = id
+}
+
+func GetCurrentUserId() string {
+	return currentUserId
+}
+
 func Init(settings *settingsservice.ApplicationSettings) {
 	AppConfig = settings
 }

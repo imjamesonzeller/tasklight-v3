@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
+	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"log"
@@ -36,8 +37,9 @@ func main() {
 	// Initialize services
 	greetService := &GreetService{}
 	windowService := NewWindowService()
+	startupService := startupservice.NewStartupService()
 	taskService := NewTaskService(windowService)
-	settingsService := settingsservice.NewSettingsService()
+	settingsService := settingsservice.NewSettingsService(startupService)
 	hotkeyService := NewHotkeyService(windowService, settingsService)
 	notionService := NewNotionService(settingsService)
 
@@ -56,6 +58,7 @@ func main() {
 			application.NewService(taskService),
 			application.NewService(settingsService),
 			application.NewService(notionService),
+			application.NewService(startupService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -124,7 +127,7 @@ func main() {
 	})
 
 	app.OnEvent("app:ready", func(e *application.CustomEvent) {
-		OnStartup(windowService, settingsService, taskService)
+		OnStartup(windowService, settingsService, notionService)
 	})
 
 	// Register settings window factory
@@ -167,17 +170,24 @@ func main() {
 	}
 }
 
-func OnStartup(ws *WindowService, ss *settingsservice.SettingsService, ts *TaskService) {
+func OnStartup(ws *WindowService, ss *settingsservice.SettingsService, ns *NotionService) {
 	ws.Show("main")
 	ss.LoadSettings()
 	config.Init(&ss.AppSettings)
-	//auth.Init(config.GetEnv("TASKLIGHT_TOKEN_SECRET"))
-	//
-	//identity, err := auth.LoadOrRegisterIdentity()
-	//if err != nil {
-	//	log.Println("Failed to load or register identity:", err)
-	//} else {
-	//	fmt.Println("Authenticated as:", identity.UserID)
-	//	ts.SetIdentity(identity)
-	//}
+
+	currentUserId, err := ns.GetNotionWorkspaceId()
+	if err != nil {
+		// Failed to derive a Notion-linked id. Prompt user to connect in Settings.
+		log.Printf("⚠️ Notion workspace id fetch failed: %v", err)
+		config.SetCurrentUserId("")
+		// Open settings so user can connect Notion
+		if !ws.IsVisible("settings") {
+			ws.Show("settings")
+		}
+		return
+	} else {
+		// Success: persist for this session and continue startup
+		config.SetCurrentUserId(currentUserId)
+		log.Printf("✅ Notion user ready: %s", currentUserId)
+	}
 }

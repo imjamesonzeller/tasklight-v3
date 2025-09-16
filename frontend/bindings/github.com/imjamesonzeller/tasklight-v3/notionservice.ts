@@ -18,6 +18,11 @@ export function GetNotionDatabases(): Promise<$models.NotionDBResponse | null> &
     return $typingPromise;
 }
 
+export function GetNotionWorkspaceId(): Promise<string> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(965567467) as any;
+    return $resultPromise;
+}
+
 export function StartOAuth(): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(301428963) as any;
     return $resultPromise;

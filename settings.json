@@ -1,8 +1,7 @@
 {
   "notion_db_id": "383875b3-347e-4089-b7c6-9a123b96cd81",
-  "use_open_ai": true,
+  "use_open_ai": false,
   "theme": "light",
-  "launch_on_startup": true,
   "hotkey": {
     "Modifiers": [
       4096

@@ -97,6 +97,14 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 		}
 		s.AppSettings.NotionAccessToken = token.AccessToken
 
+		// Derive stable Notion id (bot id) and set as current user id for this session
+		if id, err := fetchNotionBotID(token.AccessToken); err != nil {
+			log.Printf("⚠️ Failed to fetch Notion bot id: %v", err)
+			config.SetCurrentUserId("")
+		} else {
+			config.SetCurrentUserId(id)
+		}
+
 		// Emit event to notify frontend to refresh
 		s.App.EmitEvent("Backend:NotionAccessToken", true)
 
@@ -118,6 +126,37 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 	}()
 
 	return srv
+}
+
+func fetchNotionBotID(accessToken string) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, "https://api.notion.com/v1/users/me", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Notion-Version", "2022-06-28")
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("/v1/users/me failed: status %d, body: %s", resp.StatusCode, body)
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+
+	idVal, ok := payload["id"].(string)
+	if !ok || idVal == "" {
+		return "", fmt.Errorf("no id in /v1/users/me response")
+	}
+	return idVal, nil
 }
 
 func exchangeCodeForToken(code string) (*NotionOAuthResponse, error) {

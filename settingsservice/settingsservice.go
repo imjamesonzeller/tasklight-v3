@@ -3,6 +3,7 @@ package settingsservice
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"os"
 	"strings"
 
@@ -26,14 +27,14 @@ type SettingsService struct {
 	App               *application.App
 	AppSettings       ApplicationSettings
 	FrontendOverrides FrontendSettings
+	StartupService    *startupservice.StartupService
 }
 
 type ApplicationSettings struct {
-	NotionDBID      string       `json:"notion_db_id"`
-	UseOpenAI       bool         `json:"use_open_ai"`
-	Theme           string       `json:"theme"`
-	LaunchOnStartup bool         `json:"launch_on_startup"`
-	Hotkey          hotkeyConfig `json:"hotkey"`
+	NotionDBID string       `json:"notion_db_id"`
+	UseOpenAI  bool         `json:"use_open_ai"`
+	Theme      string       `json:"theme"`
+	Hotkey     hotkeyConfig `json:"hotkey"`
 
 	// ====== Date Property Shiznit ======
 	DatePropertyID   string `json:"date_property_id"`
@@ -59,8 +60,9 @@ type FrontendSettings struct {
 
 // ====== Initializers ======
 
-func NewSettingsService() *SettingsService {
+func NewSettingsService(startup *startupservice.StartupService) *SettingsService {
 	service := &SettingsService{}
+	service.StartupService = startup
 	service.LoadSettings()
 	return service
 }
@@ -218,7 +220,7 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 	var frontend FrontendSettings
 	frontend.UseOpenAI = s.AppSettings.UseOpenAI
 	frontend.Theme = s.AppSettings.Theme
-	frontend.LaunchOnStartup = s.AppSettings.LaunchOnStartup
+	frontend.LaunchOnStartup = s.StartupService.IsEnabled()
 	frontend.NotionDBID = s.AppSettings.NotionDBID
 	frontend.DatePropertyID = s.AppSettings.DatePropertyID
 	frontend.DatePropertyName = s.AppSettings.DatePropertyName
@@ -262,6 +264,14 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 	}
 	if newSettings.OpenAIAPIKey == "" {
 		newSettings.OpenAIAPIKey, _ = LoadSecret(keychainOpenAIKey)
+	}
+
+	if launchRaw, ok := raw["launch_on_startup"].(bool); ok {
+		if launchRaw {
+			_ = s.StartupService.EnableLaunchAtLogin()
+		} else {
+			_ = s.StartupService.DisableLaunchAtLogin()
+		}
 	}
 
 	s.AppSettings = newSettings

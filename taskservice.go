@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/imjamesonzeller/tasklight-v3/auth"
 	"github.com/openai/openai-go"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -25,7 +24,6 @@ type TaskInformation struct {
 type TaskService struct {
 	app           *application.App
 	windowService *WindowService
-	identity      *auth.Identity
 }
 
 func NewTaskService(windowService *WindowService) *TaskService {
@@ -38,74 +36,8 @@ func (ts *TaskService) SetApp(app *application.App) {
 	ts.app = app
 }
 
-func (ts *TaskService) SetIdentity(identity *auth.Identity) {
-	ts.identity = identity
-}
-
-func (ts *TaskService) CanUseAI() (bool, int) {
-	if ts.identity == nil {
-		log.Println("No identity loaded")
-		return false, 0
-	}
-
-	url := fmt.Sprintf("https://api.jamesonzeller.com/check-usage?user_id=%s&auth_token=%s", ts.identity.UserID, ts.identity.AuthToken)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Println("Failed to contact usage server: ", err)
-		return false, 0
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		Allowed   bool `json:"allowed"`
-		Remaining int  `json:"remaining"`
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		log.Println("Failed to parse usage response: ", err)
-		return false, 0
-	}
-
-	return result.Allowed, result.Remaining
-}
-
-func (ts *TaskService) IncrementUsage() {
-	if ts.identity == nil {
-		log.Println("No identity loaded")
-		return
-	}
-
-	data := map[string]string{
-		"user_id":    ts.identity.UserID,
-		"auth_token": ts.identity.AuthToken,
-	}
-	jsonData, err := json.Marshal(data)
-
-	resp, err := http.Post("https://api.jamesonzeller.com/increment-usage", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Println("Failed to increment usage: ", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		log.Println("Increment usage failed: ", string(body))
-	}
-}
-
-func (ts *TaskService) UseAI() bool {
-	if !c.AppConfig.UseOpenAI {
-		return false
-	}
-
-	if c.AppConfig.OpenAIAPIKey == "" {
-		return false
-	}
-
-	return true
+func (ts *TaskService) CanUseAI() bool {
+	return c.AppConfig.UseOpenAI
 }
 
 // ProcessMessage Called from frontend
@@ -126,42 +58,115 @@ func (ts *TaskService) ProcessMessage(message string) {
 // --- Internals ---
 
 func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
-	if !ts.UseAI() {
+	if !ts.CanUseAI() {
 		return TaskInformation{Title: input, Date: nil}
 	}
 
-	client := openai.NewClient(option.WithAPIKey(c.AppConfig.OpenAIAPIKey))
+	key, userProvided := ts.selectOpenAIKey()
+	if userProvided {
+		prompt := buildParsePrompt(input)
+		task, err := ts.callOpenAI(key, prompt)
+		if err != nil {
+			log.Println("ProcessedThroughAI: AI call failed:", err)
+			return TaskInformation{Title: input, Date: nil}
+		}
+		return task
+	}
 
-	today := time.Now().Format("2006-01-02") // ISO 8601 format
-	prompt := fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
+	// No user key: call server to parse (server owns key, checks & increments usage)
+	task, err := ts.callServerParse(input)
+	if err != nil {
+		log.Println("ProcessedThroughAI: server parse failed:", err)
+		return TaskInformation{Title: input, Date: nil}
+	}
+	return task
+}
+
+// selectOpenAIKey decides which key to use and returns (key, userProvided)
+func (ts *TaskService) selectOpenAIKey() (string, bool) {
+	userProvided := c.AppConfig.UseOpenAI && c.AppConfig.OpenAIAPIKey != ""
+	if userProvided {
+		return c.AppConfig.OpenAIAPIKey, true
+	}
+	return "", false
+}
+
+// buildParsePrompt returns the exact prompt text for parsing
+func buildParsePrompt(input string) string {
+	today := time.Now().Format("2006-01-02") // ISO 8601
+	return fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
                                   task descriptions into clean, structured data.
                                   Today's date is is %s.
                                   Parse the following sentence: "%s".
-								  Ignore phrases like "remind me to", "remind me on", or similar expressions,
-								  only focus on the task and date.
+                                  Ignore phrases like "remind me to", "remind me on", or similar expressions,
+                                  only focus on the task and date.
                                   Return only a JSON object in this exact format: { "title": ..., "date": ... }.
                                   If no date is mentioned, set the "date" value to null.
                                   The date should be in ISO 8601 format when present.`, today, input)
+}
 
+// callOpenAI sends the prompt and parses the returned JSON content into TaskInformation
+func (ts *TaskService) callOpenAI(apiKey string, prompt string) (TaskInformation, error) {
+	client := openai.NewClient(option.WithAPIKey(apiKey))
 	resp, err := client.Chat.Completions.New(context.TODO(), openai.ChatCompletionNewParams{
-		Model: openai.ChatModelGPT4oMini,
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage(prompt),
-		},
+		Model:    openai.ChatModelGPT4oMini,
+		Messages: []openai.ChatCompletionMessageParamUnion{openai.UserMessage(prompt)},
 	})
 	if err != nil {
-		log.Println("OpenAI call failed:", err)
-		return TaskInformation{Title: input, Date: nil}
+		return TaskInformation{}, err
 	}
+	if len(resp.Choices) == 0 || resp.Choices[0].Message.Content == "" {
+		return TaskInformation{}, fmt.Errorf("empty AI response")
+	}
+	return parseTaskFromContent(resp.Choices[0].Message.Content)
+}
 
-	var task TaskInformation
-	err = json.Unmarshal([]byte(resp.Choices[0].Message.Content), &task)
+// callServerParse sends the text to the backend, which handles OpenAI calls and usage accounting
+func (ts *TaskService) callServerParse(input string) (TaskInformation, error) {
+	userID := c.GetCurrentUserId()
+	if userID == "" {
+		return TaskInformation{}, fmt.Errorf("no current user id set; connect Notion")
+	}
+	payload := map[string]string{"text": input}
+	body, err := json.Marshal(payload)
 	if err != nil {
-		log.Println("Failed to parse AI output:", err)
-		return TaskInformation{Title: input, Date: nil}
+		return TaskInformation{}, err
+	}
+	req, err := http.NewRequest(http.MethodPost, "https://api.jamesonzeller.com/tasklight/parse", bytes.NewBuffer(body))
+	if err != nil {
+		return TaskInformation{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Notion-User-Id", userID)
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		return TaskInformation{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusTooManyRequests && ts.app != nil {
+			ts.app.EmitEvent("Backend:ErrorEvent", "Daily AI limit reached")
+		}
+		return TaskInformation{}, fmt.Errorf("server parse %d: %s", resp.StatusCode, string(b))
 	}
 
-	return task
+	var parsed TaskInformation
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return TaskInformation{}, err
+	}
+	return parsed, nil
+}
+
+// parseTaskFromContent converts the model's JSON string into TaskInformation
+func parseTaskFromContent(content string) (TaskInformation, error) {
+	var task TaskInformation
+	if err := json.Unmarshal([]byte(content), &task); err != nil {
+		return TaskInformation{}, err
+	}
+	return task, nil
 }
 
 func (ts *TaskService) SendToNotion(task TaskInformation) string {

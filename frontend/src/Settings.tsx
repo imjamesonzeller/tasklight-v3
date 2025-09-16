@@ -293,7 +293,7 @@ export default function Settings() {
             </div>
 
             <div>
-                <label>Use OpenAI:</label>
+                <label>Check to use your own OpenAI API Key:</label>
                 <input type="checkbox" name="use_open_ai" checked={settings.use_open_ai} onChange={handleChange} />
             </div>
 
