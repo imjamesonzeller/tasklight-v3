@@ -13,16 +13,6 @@ import * as application$0 from "../../wailsapp/wails/v3/pkg/application/models.j
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-export function CanUseAI(): Promise<[boolean, number]> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(3946521787) as any;
-    return $resultPromise;
-}
-
-export function IncrementUsage(): Promise<void> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(81726156) as any;
-    return $resultPromise;
-}
-
 /**
  * ProcessMessage Called from frontend
  */
@@ -47,11 +37,6 @@ export function SendToNotion(task: $models.TaskInformation): Promise<string> & {
 
 export function SetApp(app: application$0.App | null): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(2316784719, app) as any;
-    return $resultPromise;
-}
-
-export function UseAI(): Promise<boolean> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(174667449) as any;
     return $resultPromise;
 }
 

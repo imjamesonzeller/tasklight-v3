@@ -10,12 +10,14 @@ import (
 type WindowService struct {
 	windows   map[string]*application.WebviewWindow
 	factories map[string]func() *application.WebviewWindow
+	visible   map[string]bool
 }
 
 func NewWindowService() *WindowService {
 	return &WindowService{
 		windows:   make(map[string]*application.WebviewWindow),
 		factories: make(map[string]func() *application.WebviewWindow),
+		visible:   make(map[string]bool),
 	}
 }
 
@@ -39,11 +41,13 @@ func (s *WindowService) getOrCreateWindow(id string) (*application.WebviewWindow
 
 	win = factory()
 	s.windows[id] = win
+	s.visible[id] = false
 
 	// Cleanup when closed
 	win.OnWindowEvent(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		fmt.Println("🪟 Window closed:", id)
 		delete(s.windows, id)
+		delete(s.visible, id)
 	})
 
 	return win, true
@@ -56,6 +60,7 @@ func (s *WindowService) Show(id string) {
 		return
 	}
 
+	s.visible[id] = true
 	application.InvokeAsync(func() {
 		win.Show()
 		win.Focus()
@@ -65,6 +70,7 @@ func (s *WindowService) Show(id string) {
 // Hide hides the window by ID
 func (s *WindowService) Hide(id string) {
 	if win, ok := s.windows[id]; ok {
+		s.visible[id] = false
 		application.InvokeAsync(func() {
 			win.Hide()
 		})
@@ -78,21 +84,23 @@ func (s *WindowService) ToggleVisibility(id string) {
 		return
 	}
 
-	application.InvokeAsync(func() {
-		if win.IsVisible() {
+	if s.visible[id] {
+		s.visible[id] = false
+		application.InvokeAsync(func() {
 			win.Hide()
-		} else {
-			println("Showing window:", id)
-			win.Show()
-			win.Focus()
-		}
+		})
+		return
+	}
+
+	s.visible[id] = true
+	application.InvokeAsync(func() {
+		println("Showing window:", id)
+		win.Show()
+		win.Focus()
 	})
 }
 
 // IsVisible returns whether a window is currently visible
 func (s *WindowService) IsVisible(id string) bool {
-	if win, ok := s.windows[id]; ok {
-		return win.IsVisible()
-	}
-	return false
+	return s.visible[id]
 }

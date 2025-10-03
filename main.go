@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	_ "embed"
+	"errors"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/imjamesonzeller/tasklight-v3/startupservice"
@@ -64,6 +65,7 @@ func main() {
 			Handler: application.AssetFileServerFS(assets),
 		},
 		Mac: application.MacOptions{
+			ActivationPolicy: application.ActivationPolicyAccessory,
 			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
@@ -101,6 +103,7 @@ func main() {
 			AlwaysOnTop:     true,
 			DevToolsEnabled: allowDevTools,
 			Mac: application.MacWindow{
+				DisableShadow:           true,
 				InvisibleTitleBarHeight: 0,
 				Backdrop:                application.MacBackdropTransparent,
 				TitleBar: application.MacTitleBar{
@@ -118,9 +121,7 @@ func main() {
 
 		// ✅ Attach event safely during creation
 		win.OnWindowEvent(events.Common.WindowLostFocus, func(e *application.WindowEvent) {
-			if windowService.IsVisible("main") {
-				windowService.ToggleVisibility("main")
-			}
+			windowService.Hide("main")
 		})
 
 		return win
@@ -177,12 +178,16 @@ func OnStartup(ws *WindowService, ss *settingsservice.SettingsService, ns *Notio
 
 	currentUserId, err := ns.GetNotionWorkspaceId()
 	if err != nil {
-		// Failed to derive a Notion-linked id. Prompt user to connect in Settings.
-		log.Printf("⚠️ Notion workspace id fetch failed: %v", err)
-		config.SetCurrentUserId("")
-		// Open settings so user can connect Notion
-		if !ws.IsVisible("settings") {
-			ws.Show("settings")
+		if errors.Is(err, ErrNotionTokenMissing) {
+			// Missing or invalid Notion credentials; surface the settings window once.
+			log.Printf("⚠️ Notion workspace id unavailable: %v", err)
+			config.SetCurrentUserId("")
+			if !ws.IsVisible("settings") {
+				ws.Show("settings")
+			}
+		} else {
+			// Network or transient failure—stay backgrounded and retry when user interacts.
+			log.Printf("⚠️ Notion workspace id fetch deferred: %v", err)
 		}
 		return
 	} else {

@@ -36,13 +36,9 @@ func (ts *TaskService) SetApp(app *application.App) {
 	ts.app = app
 }
 
-func (ts *TaskService) CanUseAI() bool {
-	return c.AppConfig.UseOpenAI
-}
-
 // ProcessMessage Called from frontend
 func (ts *TaskService) ProcessMessage(message string) {
-	ts.windowService.ToggleVisibility("main")
+	ts.windowService.Hide("main")
 
 	go func() {
 		task := ts.ProcessedThroughAI(message)
@@ -50,7 +46,7 @@ func (ts *TaskService) ProcessMessage(message string) {
 
 		if status != "200 OK" {
 			ts.app.EmitEvent("Backend:ErrorEvent", status)
-			ts.windowService.ToggleVisibility("main")
+			ts.windowService.Show("main")
 		}
 	}()
 }
@@ -58,10 +54,6 @@ func (ts *TaskService) ProcessMessage(message string) {
 // --- Internals ---
 
 func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
-	if !ts.CanUseAI() {
-		return TaskInformation{Title: input, Date: nil}
-	}
-
 	key, userProvided := ts.selectOpenAIKey()
 	if userProvided {
 		prompt := buildParsePrompt(input)
@@ -94,15 +86,16 @@ func (ts *TaskService) selectOpenAIKey() (string, bool) {
 // buildParsePrompt returns the exact prompt text for parsing
 func buildParsePrompt(input string) string {
 	today := time.Now().Format("2006-01-02") // ISO 8601
+	weekday := time.Now().Weekday().String()
 	return fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
                                   task descriptions into clean, structured data.
-                                  Today's date is is %s.
+                                  Today's date is is %s. Today is a %s
                                   Parse the following sentence: "%s".
                                   Ignore phrases like "remind me to", "remind me on", or similar expressions,
                                   only focus on the task and date.
                                   Return only a JSON object in this exact format: { "title": ..., "date": ... }.
                                   If no date is mentioned, set the "date" value to null.
-                                  The date should be in ISO 8601 format when present.`, today, input)
+                                  The date should be in ISO 8601 format when present.`, today, weekday, input)
 }
 
 // callOpenAI sends the prompt and parses the returned JSON content into TaskInformation
@@ -132,7 +125,7 @@ func (ts *TaskService) callServerParse(input string) (TaskInformation, error) {
 	if err != nil {
 		return TaskInformation{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, "https://api.jamesonzeller.com/tasklight/parse", bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/tasklight/parse", bytes.NewBuffer(body))
 	if err != nil {
 		return TaskInformation{}, err
 	}
@@ -147,9 +140,6 @@ func (ts *TaskService) callServerParse(input string) (TaskInformation, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusTooManyRequests && ts.app != nil {
-			ts.app.EmitEvent("Backend:ErrorEvent", "Daily AI limit reached")
-		}
 		return TaskInformation{}, fmt.Errorf("server parse %d: %s", resp.StatusCode, string(b))
 	}
 

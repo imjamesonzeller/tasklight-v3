@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/notionauth"
@@ -17,6 +18,8 @@ import (
 type NotionService struct {
 	settingsservice *settingsservice.SettingsService
 }
+
+var ErrNotionTokenMissing = errors.New("notion access token unavailable")
 
 func NewNotionService(settingsservice *settingsservice.SettingsService) *NotionService {
 	return &NotionService{settingsservice: settingsservice}
@@ -119,6 +122,10 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("%w: status %d, body: %s", ErrNotionTokenMissing, resp.StatusCode, body)
+		}
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("failed to get databases, status %d, body: %s", resp.StatusCode, body)
 	}
@@ -155,7 +162,7 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 func (n *NotionService) GetNotionWorkspaceId() (string, error) {
 	notionToken := config.AppConfig.NotionAccessToken
 	if notionToken == "" {
-		return "", fmt.Errorf("Notion access token is empty")
+		return "", ErrNotionTokenMissing
 	}
 
 	req, err := http.NewRequest("GET", "https://api.notion.com/v1/users/me", nil)
@@ -170,6 +177,11 @@ func (n *NotionService) GetNotionWorkspaceId() (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("%w: status %d, body: %s", ErrNotionTokenMissing, resp.StatusCode, body)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

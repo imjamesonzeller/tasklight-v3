@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/keybase/go-keychain"
@@ -18,7 +19,7 @@ const (
 	keychainService     = "com.tasklight.app"
 	keychainNotionToken = "NotionAccessToken"
 	keychainOpenAIKey   = "OpenAIAPISecret"
-	settingsFilePath    = "settings.json"
+	settingsFileName    = "settings.json"
 )
 
 // ====== Structs ======
@@ -28,6 +29,7 @@ type SettingsService struct {
 	AppSettings       ApplicationSettings
 	FrontendOverrides FrontendSettings
 	StartupService    *startupservice.StartupService
+	settingsPath      string
 }
 
 type ApplicationSettings struct {
@@ -63,8 +65,23 @@ type FrontendSettings struct {
 func NewSettingsService(startup *startupservice.StartupService) *SettingsService {
 	service := &SettingsService{}
 	service.StartupService = startup
+	service.settingsPath = resolveSettingsPath()
 	service.LoadSettings()
 	return service
+}
+
+func resolveSettingsPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		return settingsFileName
+	}
+
+	appDir := filepath.Join(configDir, "Tasklight")
+	if mkErr := os.MkdirAll(appDir, 0o755); mkErr != nil {
+		return settingsFileName
+	}
+
+	return filepath.Join(appDir, settingsFileName)
 }
 
 func (s *SettingsService) SetApp(app *application.App) {
@@ -186,7 +203,11 @@ func (s *SettingsService) ClearOpenAIKey() error {
 // ====== Settings Load/Save ======
 
 func (s *SettingsService) LoadSettings() {
-	data, err := os.ReadFile(settingsFilePath)
+	if s.settingsPath == "" {
+		s.settingsPath = resolveSettingsPath()
+	}
+
+	data, err := os.ReadFile(s.settingsPath)
 	if err == nil {
 		_ = json.Unmarshal(data, &s.AppSettings)
 	}
@@ -201,9 +222,14 @@ func (s *SettingsService) SaveSettings() {
 	sanitized.NotionAccessToken = ""
 	sanitized.OpenAIAPIKey = ""
 
+	if s.settingsPath == "" {
+		s.settingsPath = resolveSettingsPath()
+	}
+	_ = os.MkdirAll(filepath.Dir(s.settingsPath), 0o755)
+
 	data, err := json.MarshalIndent(sanitized, "", "  ")
 	if err == nil {
-		_ = os.WriteFile(settingsFilePath, data, 0644)
+		_ = os.WriteFile(s.settingsPath, data, 0644)
 	}
 
 	if s.AppSettings.NotionAccessToken != "" {
