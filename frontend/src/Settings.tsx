@@ -42,6 +42,29 @@ function SelectNotionDB({ databases, value, onChange, className, disabled }: Sel
     )
 }
 
+const tabs = [
+    {
+        id: "general",
+        label: "General",
+        description: "Theme, launch behaviour, and overall preferences.",
+    },
+    {
+        id: "shortcuts",
+        label: "Shortcuts",
+        description: "Configure Tasklight's global hotkeys.",
+    },
+    {
+        id: "ai",
+        label: "AI",
+        description: "Bring your own OpenAI key and manage usage.",
+    },
+    {
+        id: "notion",
+        label: "Notion",
+        description: "Connect databases and pick date fields for syncing.",
+    },
+] as const
+
 export default function Settings() {
     const [settings, setSettings] = useState({
         notion_db_id: "",
@@ -61,6 +84,7 @@ export default function Settings() {
     const [dateValid, setDateValid] = useState(true)
     const [recordingHotkey, setRecordingHotkey] = useState(false)
     const [openAIKey, setOpenAIKey] = useState("")
+    const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("general")
 
     useEffect(() => {
         s.GetSettings()
@@ -151,6 +175,7 @@ export default function Settings() {
     const saveSettings = async () => {
         if (!dateValid) {
             setStatus("⚠️ Select a date property before saving.")
+            setActiveTab("notion")
             return
         }
 
@@ -159,6 +184,7 @@ export default function Settings() {
                 const trimmedKey = openAIKey.trim()
                 if (!settings.has_openai_key && trimmedKey === "") {
                     setStatus("❌ Enter your OpenAI API key to enable BYOK.")
+                    setActiveTab("ai")
                     return
                 }
 
@@ -202,7 +228,6 @@ export default function Settings() {
                 setHasMultipleDateProps(false)
             }
         } catch (err: any) {
-            // If the user isn't connected yet, suppress noisy errors.
             const message = err?.message ?? String(err)
             if (message && !message.includes("401")) {
                 setStatus("⚠️ Unable to load Notion databases: " + message)
@@ -291,245 +316,277 @@ export default function Settings() {
         return "info"
     }, [status])
 
+    const renderGeneral = () => (
+        <>
+            <section className="settings-card">
+                <header className="settings-card-header">
+                    <h2>Appearance</h2>
+                    <p>Choose how Tasklight looks when it pops into view.</p>
+                </header>
+                <div className="settings-field">
+                    <label className="field-label">Theme</label>
+                    <select
+                        name="theme"
+                        value={settings.theme}
+                        onChange={handleChange}
+                        className="input-control"
+                    >
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </section>
+
+            <section className="settings-card">
+                <header className="settings-card-header">
+                    <h2>Launch & Behaviour</h2>
+                    <p>Keep Tasklight ready without showing a dock icon.</p>
+                </header>
+                <label className="toggle">
+                    <input
+                        type="checkbox"
+                        name="launch_on_startup"
+                        checked={settings.launch_on_startup}
+                        onChange={handleChange}
+                    />
+                    <span className="toggle-track">
+                        <span className="toggle-thumb" />
+                    </span>
+                    <div className="toggle-copy">
+                        <span>Launch Tasklight on login</span>
+                        <p>Your capture window is ready right after reboot.</p>
+                    </div>
+                </label>
+            </section>
+        </>
+    )
+
+    const renderShortcuts = () => (
+        <section className="settings-card">
+            <header className="settings-card-header">
+                <h2>Global Hotkey</h2>
+                <p>Summon Tasklight instantly from anywhere.</p>
+            </header>
+            <div className="hotkey-row">
+                <input
+                    id="hotkeyInput"
+                    type="text"
+                    name="hotkey"
+                    value={settings.hotkey}
+                    disabled
+                    readOnly
+                    className="input-control input-control--readonly"
+                />
+                <button
+                    type="button"
+                    onClick={startRecordingHotkey}
+                    className={`btn btn-secondary ${recordingHotkey ? "btn-recording" : ""}`}
+                >
+                    {recordingHotkey ? "Press keys…" : "Change"}
+                </button>
+            </div>
+        </section>
+    )
+
+    const renderAI = () => (
+        <section className="settings-card">
+            <header className="settings-card-header">
+                <h2>Bring Your Own Key</h2>
+                <p>Run parsing through your OpenAI account, stored securely in Keychain.</p>
+            </header>
+
+            <label className="toggle">
+                <input
+                    type="checkbox"
+                    name="use_open_ai"
+                    checked={settings.use_open_ai}
+                    onChange={handleChange}
+                />
+                <span className="toggle-track">
+                    <span className="toggle-thumb" />
+                </span>
+                <div className="toggle-copy">
+                    <span>Use your own OpenAI API key</span>
+                    <p>Toggle off to fall back to Tasklight's managed key when available.</p>
+                </div>
+            </label>
+
+            {settings.use_open_ai && (
+                <div className="settings-field">
+                    <label className="field-label">OpenAI API key</label>
+                    <p className="field-helper">Tasklight only stores this encrypted in your macOS Keychain.</p>
+                    <div className="hotkey-row">
+                        <input
+                            type="password"
+                            name="openai_api_key"
+                            id="openaikey"
+                            value={openAIKey}
+                            onChange={handleOpenAIChange}
+                            placeholder={
+                                settings.has_openai_key
+                                    ? "Stored securely in Keychain"
+                                    : "sk-live-..."
+                            }
+                            className="input-control"
+                        />
+                        <button
+                            type="button"
+                            onClick={resetOpenAI}
+                            className="btn btn-ghost"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            )}
+        </section>
+    )
+
+    const renderNotion = () => (
+        <>
+            <section className="settings-card">
+                <header className="settings-card-header">
+                    <h2>Notion Connection</h2>
+                    <p>Authorise Tasklight and pick the database that receives new tasks.</p>
+                </header>
+                <div className="notion-connection">
+                    <span
+                        className={`status-chip ${
+                            notionConnected ? "status-chip--positive" : "status-chip--negative"
+                        }`}
+                    >
+                        {notionConnected ? "Connected" : "Not connected"}
+                    </span>
+                    <button type="button" onClick={connectNotion} className="btn btn-primary">
+                        {notionConnected ? "Manage connection" : "Connect to Notion"}
+                    </button>
+                </div>
+            </section>
+
+            <section className="settings-card">
+                <header className="settings-card-header">
+                    <h2>Database & Date Property</h2>
+                    <p>Tell Tasklight where to store tasks and which date field to hydrate.</p>
+                </header>
+                <div className="settings-field">
+                    <label className="field-label">Task database</label>
+                    <SelectNotionDB
+                        databases={notionDBs}
+                        value={settings.notion_db_id}
+                        onChange={(value) =>
+                            setSettings((prev) => ({ ...prev, notion_db_id: value }))
+                        }
+                        className="input-control"
+                        disabled={!notionConnected}
+                    />
+                </div>
+                <div className="settings-field">
+                    <label className="field-label">Date property</label>
+                    {hasMultipleDateProps ? (
+                        <select
+                            value={settings.date_property_id}
+                            onChange={(e) => {
+                                const id = e.target.value
+                                const name =
+                                    notionDBs.find((db) => db.id === settings.notion_db_id)?.properties?.[id]
+                                        ?.name ?? "Unknown"
+
+                                setSettings((prev) => ({
+                                    ...prev,
+                                    date_property_id: id,
+                                    date_property_name: name,
+                                }))
+                            }}
+                            className="input-control"
+                        >
+                            <option value="" disabled>
+                                Select date property
+                            </option>
+                            {Object.entries(
+                                notionDBs.find((db) => db.id === settings.notion_db_id)?.properties ?? {}
+                            )
+                                .filter(([_, prop]) => prop.type === "date")
+                                .map(([id, prop]) => (
+                                    <option key={id} value={id}>
+                                        {prop.name}
+                                    </option>
+                                ))}
+                        </select>
+                    ) : (
+                        <div className="status-chip status-chip--neutral">
+                            {datePropertyLabel}
+                        </div>
+                    )}
+                </div>
+
+                {!dateValid && (
+                    <p className="inline-warning">Select a date property before saving.</p>
+                )}
+            </section>
+        </>
+    )
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case "general":
+                return renderGeneral()
+            case "shortcuts":
+                return renderShortcuts()
+            case "ai":
+                return renderAI()
+            case "notion":
+                return renderNotion()
+            default:
+                return null
+        }
+    }
+
     return (
         <div className="settings-shell">
             <div className="settings-scroll-region">
-                <div className="settings-panel">
-                <header className="settings-header">
-                    <div className="settings-header-copy">
-                        <h1>Tasklight Preferences</h1>
-                        <p>Dial in your shortcut, launch behaviour, and Notion integration.</p>
-                    </div>
-                    <span
-                        className={`settings-badge ${
-                            notionConnected ? "settings-badge--connected" : "settings-badge--disconnected"
-                        }`}
-                    >
-                        {notionConnected ? "Notion Linked" : "Notion Not Linked"}
-                    </span>
-                </header>
-
-                <section className="settings-section">
-                    <h2 className="settings-section-title">Appearance & Launch</h2>
-                    <div className="settings-field">
-                        <div className="settings-field-heading">
-                            <span>Theme</span>
-                            <p>Switch between the light and dark shells for the input window.</p>
+                <div className="settings-layout">
+                    <aside className="settings-sidebar">
+                        <div className="sidebar-header">
+                            <h1>Tasklight Preferences</h1>
+                            <p>Fine-tune Tasklight without ever showing the dock icon.</p>
                         </div>
-                        <select
-                            name="theme"
-                            value={settings.theme}
-                            onChange={handleChange}
-                            className="input-control"
-                        >
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
-                    </div>
-
-                    <label className="toggle">
-                        <input
-                            type="checkbox"
-                            name="launch_on_startup"
-                            checked={settings.launch_on_startup}
-                            onChange={handleChange}
-                        />
-                        <span className="toggle-track">
-                            <span className="toggle-thumb" />
-                        </span>
-                        <div className="toggle-copy">
-                            <span>Launch Tasklight on login</span>
-                            <p>Keep Tasklight ready in the background after you reboot.</p>
-                        </div>
-                    </label>
-                </section>
-
-                <section className="settings-section">
-                    <h2 className="settings-section-title">Keyboard Shortcut</h2>
-                    <div className="settings-field">
-                        <div className="settings-field-heading">
-                            <span>Global hotkey</span>
-                            <p>Summon the capture window from anywhere.</p>
-                        </div>
-                        <div className="hotkey-row">
-                            <input
-                                id="hotkeyInput"
-                                type="text"
-                                name="hotkey"
-                                value={settings.hotkey}
-                                disabled
-                                readOnly
-                                className="input-control input-control--readonly"
-                            />
-                            <button
-                                type="button"
-                                onClick={startRecordingHotkey}
-                                className={`btn btn-secondary ${recordingHotkey ? "btn-recording" : ""}`}
-                            >
-                                {recordingHotkey ? "Press keys…" : "Change"}
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="settings-section">
-                    <h2 className="settings-section-title">AI Assistance</h2>
-                    <label className="toggle">
-                        <input
-                            type="checkbox"
-                            name="use_open_ai"
-                            checked={settings.use_open_ai}
-                            onChange={handleChange}
-                        />
-                        <span className="toggle-track">
-                            <span className="toggle-thumb" />
-                        </span>
-                        <div className="toggle-copy">
-                            <span>Use your own OpenAI API key</span>
-                            <p>Calls run through your OpenAI account and stay in your Keychain.</p>
-                        </div>
-                    </label>
-
-                    {settings.use_open_ai && (
-                        <div className="settings-field">
-                            <div className="settings-field-heading">
-                                <span>OpenAI API key</span>
-                                <p>Paste a secret key. Tasklight never stores it in plaintext.</p>
-                            </div>
-                            <div className="hotkey-row">
-                                <input
-                                    type="password"
-                                    name="openai_api_key"
-                                    id="openaikey"
-                                    value={openAIKey}
-                                    onChange={handleOpenAIChange}
-                                    placeholder={
-                                        settings.has_openai_key
-                                            ? "Stored securely in Keychain"
-                                            : "sk-live-..."
-                                    }
-                                    className="input-control"
-                                />
+                        <nav className="settings-nav">
+                            {tabs.map((tab) => (
                                 <button
+                                    key={tab.id}
                                     type="button"
-                                    onClick={resetOpenAI}
-                                    className="btn btn-ghost"
+                                    className={`settings-nav-button ${
+                                        activeTab === tab.id ? "settings-nav-button--active" : ""
+                                    }`}
+                                    onClick={() => setActiveTab(tab.id)}
                                 >
-                                    Remove
+                                    <span className="settings-nav-label">{tab.label}</span>
+                                    <span className="settings-nav-desc">{tab.description}</span>
                                 </button>
-                            </div>
-                        </div>
-                    )}
-                </section>
+                            ))}
+                        </nav>
+                    </aside>
 
-                <section className="settings-section">
-                    <h2 className="settings-section-title">Notion Workspace</h2>
-                    <div className="settings-field">
-                        <div className="settings-field-heading">
-                            <span>Connection</span>
-                            <p>Authorize Tasklight to capture tasks into your workspace.</p>
-                        </div>
-                        <div className="notion-actions">
-                            <span
-                                className={`status-chip ${
-                                    notionConnected ? "status-chip--positive" : "status-chip--negative"
-                                }`}
-                            >
-                                {notionConnected ? "Connected" : "Not connected"}
-                            </span>
+                    <main className="settings-content">
+                        {renderContent()}
+
+                        <footer className="settings-footer">
                             <button
                                 type="button"
-                                onClick={connectNotion}
-                                className="btn btn-primary"
+                                onClick={saveSettings}
+                                disabled={!dateValid}
+                                className="btn btn-accent"
                             >
-                                {notionConnected ? "Manage connection" : "Connect to Notion"}
+                                Save preferences
                             </button>
-                        </div>
-                    </div>
 
-                    <div className="settings-field">
-                        <div className="settings-field-heading">
-                            <span>Task database</span>
-                            <p>Select the database Tasklight updates with new tasks.</p>
-                        </div>
-                        <SelectNotionDB
-                            databases={notionDBs}
-                            value={settings.notion_db_id}
-                            onChange={(value) =>
-                                setSettings((prev) => ({ ...prev, notion_db_id: value }))
-                            }
-                            className="input-control"
-                            disabled={!notionConnected}
-                        />
-                    </div>
-
-                    <div className="settings-field">
-                        <div className="settings-field-heading">
-                            <span>Date property</span>
-                            <p>
-                                {hasMultipleDateProps
-                                    ? "Choose which Notion date property Tasklight should fill."
-                                    : "Used for due dates parsed from natural language."}
-                            </p>
-                        </div>
-                        {hasMultipleDateProps ? (
-                            <select
-                                value={settings.date_property_id}
-                                onChange={(e) => {
-                                    const id = e.target.value
-                                    const name =
-                                        notionDBs.find((db) => db.id === settings.notion_db_id)?.properties?.[id]
-                                            ?.name ?? "Unknown"
-
-                                    setSettings((prev) => ({
-                                        ...prev,
-                                        date_property_id: id,
-                                        date_property_name: name,
-                                    }))
-                                }}
-                                className="input-control"
-                            >
-                                <option value="" disabled>
-                                    Select date property
-                                </option>
-                                {Object.entries(
-                                    notionDBs.find((db) => db.id === settings.notion_db_id)?.properties ?? {}
-                                )
-                                    .filter(([_, prop]) => prop.type === "date")
-                                    .map(([id, prop]) => (
-                                        <option key={id} value={id}>
-                                            {prop.name}
-                                        </option>
-                                    ))}
-                            </select>
-                        ) : (
-                            <div className="status-chip status-chip--neutral">
-                                {datePropertyLabel}
-                            </div>
-                        )}
-                    </div>
-
-                    {!dateValid && (
-                        <p className="inline-warning">Select a date property before saving.</p>
-                    )}
-                </section>
-
-                <footer className="settings-footer">
-                    <button
-                        type="button"
-                        onClick={saveSettings}
-                        disabled={!dateValid}
-                        className="btn btn-accent btn-block"
-                    >
-                        Save preferences
-                    </button>
-
-                    {status && (
-                        <div className={`status-banner status-banner--${statusTone || "info"}`}>
-                            {status}
-                        </div>
-                    )}
-                </footer>
+                            {status && (
+                                <div className={`status-banner status-banner--${statusTone || "info"}`}>
+                                    {status}
+                                </div>
+                            )}
+                        </footer>
+                    </main>
                 </div>
             </div>
         </div>
