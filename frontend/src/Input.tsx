@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, KeyboardEvent, ChangeEvent } from "react";
 // import "./App.css";
 import { WindowService as ws, TaskService as ts } from "../bindings/github.com/imjamesonzeller/tasklight-v3"
+import { SettingsService as settingsService } from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
 import { Events } from '@wailsio/runtime';
 // @ts-ignore
 import { WailsEvent } from "@wailsio/runtime/types/events";
@@ -8,6 +9,7 @@ import { WailsEvent } from "@wailsio/runtime/types/events";
 function Input() {
     const [resultText, setResultText] = useState<string>("");
     const [name, setName] = useState<string>("");
+    const [theme, setTheme] = useState<"light" | "dark">("light");
     const inputRef = useRef<HTMLInputElement>(null);
     const window: string = "main"
 
@@ -47,12 +49,21 @@ function Input() {
             });
     };
 
+    const applyTheme = useCallback((value?: string) => {
+        const normalized = value === "dark" ? "dark" : "light"
+        setTheme(normalized)
+        document.body.dataset.theme = normalized
+    }, [])
+
     useEffect(() => {
         const focusInput = () => {
             if (inputRef.current) {
                 inputRef.current.focus();
                 setResultText("");
             }
+            settingsService.GetSettings()
+                .then((res) => applyTheme(res.theme))
+                .catch(() => applyTheme("light"))
         };
 
         setTimeout(() => {
@@ -71,6 +82,24 @@ function Input() {
     }, []);
 
     useEffect(() => {
+        const refreshTheme = () => {
+            settingsService
+                .GetSettings()
+                .then((res) => applyTheme(res.theme))
+                .catch(() => applyTheme("light"))
+        }
+
+        refreshTheme()
+        const offFocus = Events.On("wails:focus", refreshTheme)
+        const offSettingsUpdate = Events.On("Backend:SettingsUpdated", refreshTheme)
+
+        return () => {
+            offFocus()
+            offSettingsUpdate()
+        }
+    }, [applyTheme])
+
+    useEffect(() => {
         const off = Events.On("Backend:ErrorEvent", (ev: WailsEvent) => {
             setResultText(`❌ Error: ${ev.data}`);
         });
@@ -81,7 +110,7 @@ function Input() {
     }, []);
 
     return (
-        <div className="spotlight-container undraggable">
+        <div className={`spotlight-container undraggable theme-${theme}`}>
             <div className="spotlight-box undraggable">
                 <input
                     ref={inputRef}

@@ -304,7 +304,9 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 	s.SaveSettings()
 
 	// Emit settings saved event so hotkey can catch it and
-	s.App.EmitEvent("Backend:SettingsUpdated", nil)
+	s.App.EmitEvent("Backend:SettingsUpdated", map[string]any{
+		"theme": s.AppSettings.Theme,
+	})
 
 	return nil
 }

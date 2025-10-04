@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from "react"
-import { SettingsService as s } from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
-import {
-    DatabaseMinimal,
-    NotionService as n,
-} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
+import {useEffect, useMemo, useState} from "react"
+import {SettingsService as s} from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
+import {DatabaseMinimal, NotionService as n,} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css"
-import { Events } from "@wailsio/runtime"
-import { PauseHotkey, ResumeHotkey } from "../bindings/github.com/imjamesonzeller/tasklight-v3/hotkeyservice.ts"
+import {Events} from "@wailsio/runtime"
+import {PauseHotkey, ResumeHotkey} from "../bindings/github.com/imjamesonzeller/tasklight-v3/hotkeyservice.ts"
 
 type SelectNotionDBProps = {
     databases: DatabaseMinimal[]
@@ -85,6 +82,13 @@ export default function Settings() {
     const [recordingHotkey, setRecordingHotkey] = useState(false)
     const [openAIKey, setOpenAIKey] = useState("")
     const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("general")
+
+    useEffect(() => {
+        document.body.dataset.theme = settings.theme === "dark" ? "dark" : "light"
+        return () => {
+            delete document.body.dataset.theme
+        }
+    }, [settings.theme])
 
     useEffect(() => {
         s.GetSettings()
@@ -541,8 +545,10 @@ export default function Settings() {
         }
     }
 
+    const themeClass = settings.theme === "dark" ? "settings-shell--dark" : "settings-shell--light"
+
     return (
-        <div className="settings-shell">
+        <div className={`settings-shell ${themeClass}`}>
             <div className="settings-scroll-region">
                 <div className="settings-layout">
                     <aside className="settings-sidebar">
