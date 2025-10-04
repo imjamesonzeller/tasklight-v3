@@ -18,24 +18,30 @@ function SelectNotionDB({ databases, value, onChange, className, disabled }: Sel
         onChange(event.target.value)
     }
 
-    const classes = ["input-control", className].filter(Boolean).join(" ")
+    const selectClasses = ["input-control", "select-control", className]
+        .filter(Boolean)
+        .join(" ")
+
+    const isDisabled = disabled || databases.length === 0
 
     return (
-        <select
-            value={value}
-            onChange={handleChange}
-            className={classes}
-            disabled={disabled || databases.length === 0}
-        >
-            <option value="" disabled>
-                {databases.length === 0 ? "No databases available" : "Select a database"}
-            </option>
-            {databases.map((db) => (
-                <option key={db.id} value={db.id}>
-                    {db.title?.[0]?.text?.content || `Untitled (${db.id.slice(0, 6)}…)`}
+        <div className={`select-wrapper${isDisabled ? " select-wrapper--disabled" : ""}`}>
+            <select
+                value={value}
+                onChange={handleChange}
+                className={selectClasses}
+                disabled={isDisabled}
+            >
+                <option value="" disabled>
+                    {databases.length === 0 ? "No databases available" : "Select a database"}
                 </option>
-            ))}
-        </select>
+                {databases.map((db) => (
+                    <option key={db.id} value={db.id}>
+                        {db.title?.[0]?.text?.content || `Untitled (${db.id.slice(0, 6)}…)`}
+                    </option>
+                ))}
+            </select>
+        </div>
     )
 }
 
@@ -329,15 +335,17 @@ export default function Settings() {
                 </header>
                 <div className="settings-field">
                     <label className="field-label">Theme</label>
-                    <select
-                        name="theme"
-                        value={settings.theme}
-                        onChange={handleChange}
-                        className="input-control"
-                    >
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
+                    <div className="select-wrapper">
+                        <select
+                            name="theme"
+                            value={settings.theme}
+                            onChange={handleChange}
+                            className="input-control select-control"
+                        >
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
                 </div>
             </section>
 
@@ -480,42 +488,43 @@ export default function Settings() {
                         onChange={(value) =>
                             setSettings((prev) => ({ ...prev, notion_db_id: value }))
                         }
-                        className="input-control"
                         disabled={!notionConnected}
                     />
                 </div>
                 <div className="settings-field">
                     <label className="field-label">Date property</label>
                     {hasMultipleDateProps ? (
-                        <select
-                            value={settings.date_property_id}
-                            onChange={(e) => {
-                                const id = e.target.value
-                                const name =
-                                    notionDBs.find((db) => db.id === settings.notion_db_id)?.properties?.[id]
-                                        ?.name ?? "Unknown"
+                        <div className="select-wrapper">
+                            <select
+                                value={settings.date_property_id}
+                                onChange={(e) => {
+                                    const id = e.target.value
+                                    const name =
+                                        notionDBs.find((db) => db.id === settings.notion_db_id)?.properties?.[id]
+                                            ?.name ?? "Unknown"
 
-                                setSettings((prev) => ({
-                                    ...prev,
-                                    date_property_id: id,
-                                    date_property_name: name,
-                                }))
-                            }}
-                            className="input-control"
-                        >
-                            <option value="" disabled>
-                                Select date property
-                            </option>
-                            {Object.entries(
-                                notionDBs.find((db) => db.id === settings.notion_db_id)?.properties ?? {}
-                            )
-                                .filter(([_, prop]) => prop.type === "date")
-                                .map(([id, prop]) => (
-                                    <option key={id} value={id}>
-                                        {prop.name}
-                                    </option>
-                                ))}
-                        </select>
+                                    setSettings((prev) => ({
+                                        ...prev,
+                                        date_property_id: id,
+                                        date_property_name: name,
+                                    }))
+                                }}
+                                className="input-control select-control"
+                            >
+                                <option value="" disabled>
+                                    Select date property
+                                </option>
+                                {Object.entries(
+                                    notionDBs.find((db) => db.id === settings.notion_db_id)?.properties ?? {}
+                                )
+                                    .filter(([_, prop]) => prop.type === "date")
+                                    .map(([id, prop]) => (
+                                        <option key={id} value={id}>
+                                            {prop.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        </div>
                     ) : (
                         <div className="status-chip status-chip--neutral">
                             {datePropertyLabel}
