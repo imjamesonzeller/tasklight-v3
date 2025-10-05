@@ -160,16 +160,25 @@ func fetchNotionBotID(accessToken string) (string, error) {
 }
 
 func exchangeCodeForToken(code string) (*NotionOAuthResponse, error) {
-	ClientId := config.GetEnv("OAUTH_CLIENT_ID")
-	ClientSecret := config.GetEnv("OAUTH_CLIENT_SECRET")
-	NotionAPIURL := "https://api.notion.com/v1/oauth/token"
+	clientID := config.GetEnv("NOTION_CLIENT_ID")
+	clientSecret := config.GetEnv("NOTION_CLIENT_SECRET")
+	if clientID == "" || clientSecret == "" {
+		return nil, fmt.Errorf("notion OAuth client credentials are not configured")
+	}
 
-	encoded := base64.StdEncoding.EncodeToString([]byte(ClientId + ":" + ClientSecret))
+	redirectURI := config.GetEnv("NOTION_REDIRECT_URI")
+	if redirectURI == "" {
+		redirectURI = "http://localhost:5173/oauth"
+	}
+
+	const notionAPIURL = "https://api.notion.com/v1/oauth/token"
+
+	encoded := base64.StdEncoding.EncodeToString([]byte(clientID + ":" + clientSecret))
 
 	data := NotionOAuthRequest{
 		GrantType:   "authorization_code",
 		Code:        code,
-		RedirectUri: "https://api.jamesonzeller.com/callback",
+		RedirectUri: redirectURI,
 	}
 
 	jsonData, err := json.Marshal(data)
@@ -177,7 +186,7 @@ func exchangeCodeForToken(code string) (*NotionOAuthResponse, error) {
 		return nil, err
 	}
 
-	r, err := http.NewRequest("POST", NotionAPIURL, bytes.NewBuffer(jsonData))
+	r, err := http.NewRequest("POST", notionAPIURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}

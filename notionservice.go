@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"runtime"
 )
@@ -49,9 +50,33 @@ func openBrowser(url string) {
 func (n *NotionService) StartOAuth() {
 	go notionauth.StartLocalOAuthListener(n.settingsservice)
 
-	url := config.GetEnv("NOTION_AUTH_URL")
-	log.Println("🔍 NOTION_AUTH_URL:", url)
-	openBrowser(url)
+	clientID := config.GetEnv("NOTION_CLIENT_ID")
+	redirectURI := config.GetEnv("NOTION_REDIRECT_URI")
+	if redirectURI == "" {
+		redirectURI = "http://localhost:5173/oauth"
+	}
+
+	if clientID == "" {
+		log.Println("⚠️ NOTION_CLIENT_ID is not configured; cannot start OAuth flow")
+		return
+	}
+
+	authURL := url.URL{
+		Scheme: "https",
+		Host:   "api.notion.com",
+		Path:   "/v1/oauth/authorize",
+	}
+
+	query := url.Values{}
+	query.Set("client_id", clientID)
+	query.Set("response_type", "code")
+	query.Set("owner", "user")
+	query.Set("redirect_uri", redirectURI)
+
+	authURL.RawQuery = query.Encode()
+
+	log.Println("🔍 Launching Notion OAuth:", authURL.String())
+	openBrowser(authURL.String())
 }
 
 type Filter struct {
@@ -89,10 +114,8 @@ type PropertyObj struct {
 }
 
 func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
-	NotionSecret := config.AppConfig.NotionAccessToken
-	NotionSearchURL := "https://api.notion.com/v1/search"
-
-	println("Notion secret:", NotionSecret)
+    NotionSecret := config.AppConfig.NotionAccessToken
+    NotionSearchURL := "https://api.notion.com/v1/search"
 
 	data := NotionSearchRequest{Filter{
 		Value:    "database",

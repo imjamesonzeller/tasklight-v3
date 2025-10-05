@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/openai/openai-go"
@@ -125,7 +126,13 @@ func (ts *TaskService) callServerParse(input string) (TaskInformation, error) {
 	if err != nil {
 		return TaskInformation{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8080/tasklight/parse", bytes.NewBuffer(body))
+	apiBase := c.GetEnv("TASKLIGHT_API_BASE")
+	if apiBase == "" {
+		apiBase = "https://api.jamesonzeller.com"
+	}
+	endpoint := strings.TrimRight(apiBase, "/") + "/tasklight/parse"
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return TaskInformation{}, err
 	}
@@ -160,37 +167,7 @@ func parseTaskFromContent(content string) (TaskInformation, error) {
 }
 
 func (ts *TaskService) SendToNotion(task TaskInformation) string {
-	nameProp := map[string]interface{}{
-		"type": "title",
-		"title": []map[string]interface{}{
-			{
-				"type": "text",
-				"text": map[string]interface{}{
-					"content": task.Title,
-				},
-			},
-		},
-	}
-
-	properties := map[string]interface{}{
-		"Name": nameProp,
-	}
-
-	if task.Date != nil {
-		properties[c.AppConfig.DatePropertyName] = map[string]interface{}{
-			"date": map[string]interface{}{
-				"start": *task.Date,
-			},
-		}
-	}
-
-	postBody := map[string]interface{}{
-		"parent": map[string]string{
-			"type":        "database_id",
-			"database_id": c.AppConfig.NotionDBID,
-		},
-		"properties": properties,
-	}
+	postBody := buildNotionPagePayload(task)
 
 	jsonData, err := json.Marshal(postBody)
 	if err != nil {
@@ -200,10 +177,10 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 
 	req, err := http.NewRequest(http.MethodPost, "https://api.notion.com/v1/pages", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Fatalf("Error creating request: %v", err)
+		msg := fmt.Sprintf("Error creating request: %v", err)
+		log.Println(msg)
+		return msg
 	}
-
-	//println("NotionAccessToken: ", c.AppConfig.NotionAccessToken)
 
 	req.Header.Add("Authorization", "Bearer "+c.AppConfig.NotionAccessToken)
 	req.Header.Add("Content-Type", "application/json; charset=utf-8")
@@ -211,15 +188,58 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatalf("Error sending request: %v", err)
+		msg := fmt.Sprintf("Error sending request: %v", err)
+		log.Println(msg)
+		return msg
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		msg := fmt.Sprintf("error reading response: %v", err)
+		log.Println(msg)
+		return msg
 	}
 
 	log.Printf("Notion response: %s", string(body))
 	return resp.Status
+}
+
+func buildNotionPagePayload(task TaskInformation) map[string]interface{} {
+	nameProp := map[string]any{
+		"type": "title",
+		"title": []map[string]any{
+			{
+				"type": "text",
+				"text": map[string]any{
+					"content": task.Title,
+				},
+			},
+		},
+	}
+
+	properties := map[string]any{
+		"Name": nameProp,
+	}
+
+	if task.Date != nil && c.AppConfig != nil && c.AppConfig.DatePropertyName != "" {
+		properties[c.AppConfig.DatePropertyName] = map[string]any{
+			"date": map[string]any{
+				"start": *task.Date,
+			},
+		}
+	}
+
+	databaseID := ""
+	if c.AppConfig != nil {
+		databaseID = c.AppConfig.NotionDBID
+	}
+
+	return map[string]any{
+		"parent": map[string]any{
+			"type":        "database_id",
+			"database_id": databaseID,
+		},
+		"properties": properties,
+	}
 }

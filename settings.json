@@ -1,5 +1,5 @@
 {
-  "notion_db_id": "383875b3-347e-4089-b7c6-9a123b96cd81",
+  "notion_db_id": "",
   "use_open_ai": false,
   "theme": "light",
   "hotkey": {
@@ -8,6 +8,6 @@
     ],
     "Key": 49
   },
-  "date_property_id": "Due Date",
-  "date_property_name": "Due Date"
+  "date_property_id": "",
+  "date_property_name": ""
 }

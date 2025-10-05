@@ -5,13 +5,13 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "My Company" # The name of the company
-  productName: "My Product" # The name of the application
-  productIdentifier: "com.mycompany.myproduct" # The unique product identifier
-  description: "A program that does X" # The application description
-  copyright: "(c) 2024, My Company" # Copyright text
-  comments: "Some Product Comments" # Comments
-  version: "v0.0.1" # The application version
+  companyName: "Tasklight"
+  productName: "Tasklight"
+  productIdentifier: "com.tasklight.app"
+  description: "Lightning-fast task capture for Notion on macOS"
+  copyright: "© 2024 Tasklight"
+  comments: "Tasklight desktop client"
+  version: "1.0.0"
 
 # Dev mode configuration
 dev_mode:
@@ -58,5 +58,4 @@ fileAssociations:
 #    role: Editor
 
 # Other data
-other:
-  - name: My Other Data
+other: []
