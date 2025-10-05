@@ -88,15 +88,25 @@ func (ts *TaskService) selectOpenAIKey() (string, bool) {
 func buildParsePrompt(input string) string {
 	today := time.Now().Format("2006-01-02") // ISO 8601
 	weekday := time.Now().Weekday().String()
-	return fmt.Sprintf(`You are a helpful task parsing assistant. Your job is to convert natural language
-                                  task descriptions into clean, structured data.
-                                  Today's date is is %s. Today is a %s
-                                  Parse the following sentence: "%s".
-                                  Ignore phrases like "remind me to", "remind me on", or similar expressions,
-                                  only focus on the task and date.
-                                  Return only a JSON object in this exact format: { "title": ..., "date": ... }.
-                                  If no date is mentioned, set the "date" value to null.
-                                  The date should be in ISO 8601 format when present.`, today, weekday, input)
+	return fmt.Sprintf(`You are a precise and reliable task parsing assistant. 
+						Your job is to convert natural-language task descriptions into clean, structured data.
+			
+						Today's date is %s. Today is a %s.
+			
+						When parsing dates:
+						- Always interpret dates as referring to the **next upcoming instance in the future** (never in the past) unless the text clearly says “last” or “previous”.
+						- Correct common spelling mistakes in weekday or month names (e.g., "firday" -> "Friday", "janury" -> "January").
+						- If the intended date is ambiguous, choose the most **reasonable future** date based on context.
+						- Use ISO 8601 format (YYYY-MM-DD) for all dates.
+			
+						Parse the following sentence: "%s".
+			
+						Ignore phrases like "remind me to", "remind me on", or similar expressions—only focus on the task and the date.
+			
+						Return only a JSON object in this exact format:
+						{ "title": ..., "date": ... }
+			
+						If no date is mentioned, set "date" to null.`, today, weekday, input)
 }
 
 // callOpenAI sends the prompt and parses the returned JSON content into TaskInformation
