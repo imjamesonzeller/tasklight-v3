@@ -136,8 +136,8 @@ func main() {
 		return app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
 			Name:          "settings",
 			Title:         "Tasklight Settings",
-			Width:         920,
-			Height:        640,
+			Width:         1040,
+			Height:        650,
 			Frameless:     false, // normal window for settings
 			DisableResize: false,
 			URL:           "/#/settings",

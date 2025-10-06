@@ -13,8 +13,18 @@ import * as application$0 from "../../../wailsapp/wails/v3/pkg/application/model
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function ClearLocalCache(): Promise<boolean> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(3418608628) as any;
+    return $resultPromise;
+}
+
 export function ClearOpenAIKey(): Promise<void> & { cancel(): void } {
     let $resultPromise = $Call.ByID(836461708) as any;
+    return $resultPromise;
+}
+
+export function GetAppVersion(): Promise<string> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(3542341323) as any;
     return $resultPromise;
 }
 

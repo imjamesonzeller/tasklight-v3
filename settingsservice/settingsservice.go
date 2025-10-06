@@ -2,10 +2,12 @@ package settingsservice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/keybase/go-keychain"
@@ -30,6 +32,7 @@ type SettingsService struct {
 	FrontendOverrides FrontendSettings
 	StartupService    *startupservice.StartupService
 	settingsPath      string
+	appVersion        string
 }
 
 func keychainDisabled() bool {
@@ -67,9 +70,10 @@ type FrontendSettings struct {
 // ====== Initializers ======
 
 func NewSettingsService(startup *startupservice.StartupService) *SettingsService {
-	service := &SettingsService{}
-	service.StartupService = startup
+	service := &SettingsService{StartupService: startup}
 	service.settingsPath = resolveSettingsPath()
+	service.AppSettings = defaultApplicationSettings()
+	service.appVersion = detectAppVersion()
 	service.LoadSettings()
 	return service
 }
@@ -94,6 +98,104 @@ func resolveSettingsPath() string {
 
 func (s *SettingsService) SetApp(app *application.App) {
 	s.App = app
+}
+
+func defaultApplicationSettings() ApplicationSettings {
+	config, err := parseHotkeyString("ctrl+space")
+	if err != nil {
+		config = hotkeyConfig{}
+	}
+
+	return ApplicationSettings{
+		Theme:  "light",
+		Hotkey: config,
+	}
+}
+
+func detectAppVersion() string {
+	if info, ok := debug.ReadBuildInfo(); ok && info != nil {
+		version := strings.TrimSpace(info.Main.Version)
+		if version != "" && version != "(devel)" {
+			return version
+		}
+
+		var revision string
+		var modified bool
+		for _, setting := range info.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				revision = strings.TrimSpace(setting.Value)
+			case "vcs.modified":
+				modified = setting.Value == "true"
+			}
+		}
+
+		if revision != "" {
+			if len(revision) > 8 {
+				revision = revision[:8]
+			}
+			if modified {
+				return "dev-" + revision + "*"
+			}
+			return "dev-" + revision
+		}
+	}
+
+	if envVersion := strings.TrimSpace(os.Getenv("TASKLIGHT_APP_VERSION")); envVersion != "" {
+		return envVersion
+	}
+
+	return "development"
+}
+
+func (s *SettingsService) GetAppVersion() string {
+	if s.appVersion == "" {
+		s.appVersion = detectAppVersion()
+	}
+	return s.appVersion
+}
+
+func (s *SettingsService) ClearLocalCache() (bool, error) {
+	var errs []error
+
+	if keychainDisabled() {
+		s.AppSettings.NotionAccessToken = ""
+		s.AppSettings.OpenAIAPIKey = ""
+	} else {
+		if err := clearSecret(keychainNotionToken); err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
+			errs = append(errs, err)
+		}
+		if err := clearSecret(keychainOpenAIKey); err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
+			errs = append(errs, err)
+		}
+	}
+
+	if s.settingsPath == "" {
+		s.settingsPath = resolveSettingsPath()
+	}
+
+	if s.settingsPath != "" {
+		if err := os.Remove(s.settingsPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			errs = append(errs, err)
+		}
+	}
+
+	if s.StartupService != nil {
+		if s.StartupService.IsEnabled() {
+			if err := s.StartupService.DisableLaunchAtLogin(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	s.AppSettings = defaultApplicationSettings()
+	s.FrontendOverrides = FrontendSettings{}
+
+	if len(errs) > 0 {
+		return false, errors.Join(errs...)
+	}
+
+	return true, nil
 }
 
 // ====== Hotkey ======

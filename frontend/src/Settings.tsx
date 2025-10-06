@@ -2,7 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {SettingsService as s} from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
 import {DatabaseMinimal, NotionService as n,} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css"
-import {Events} from "@wailsio/runtime"
+import {Events, Browser} from "@wailsio/runtime"
 import {PauseHotkey, ResumeHotkey} from "../bindings/github.com/imjamesonzeller/tasklight-v3/hotkeyservice.ts"
 
 type SelectNotionDBProps = {
@@ -68,6 +68,37 @@ const tabs = [
     },
 ] as const
 
+type HelpView = "root" | "about" | "acknowledgements" | "resetConfirm"
+
+type Acknowledgement = {
+    name: string
+    description: string
+    url: string
+}
+
+const acknowledgements: Acknowledgement[] = [
+    {
+        name: "Wails",
+        description: "Desktop runtime marrying Go backends with modern web UIs.",
+        url: "https://wails.io",
+    },
+    {
+        name: "React",
+        description: "Component model powering the interactive settings surface.",
+        url: "https://react.dev",
+    },
+    {
+        name: "Notion API",
+        description: "Official API layer Tasklight relies on for workspace sync.",
+        url: "https://developers.notion.com",
+    },
+    {
+        name: "go-autostart",
+        description: "Cross-platform helpers for managing login launch agents.",
+        url: "https://github.com/protonmail/go-autostart",
+    },
+]
+
 export default function Settings() {
     const [settings, setSettings] = useState({
         notion_db_id: "",
@@ -90,6 +121,17 @@ export default function Settings() {
     const [openAIKey, setOpenAIKey] = useState("")
     const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("general")
     const notionConnectTimeoutRef = useRef<number | null>(null)
+    const [helpOpen, setHelpOpen] = useState(false)
+    const [helpView, setHelpView] = useState<HelpView>("root")
+    const [helpSelectionIndex, setHelpSelectionIndex] = useState(0)
+    const [appVersion, setAppVersion] = useState("")
+    const [helpError, setHelpError] = useState<string | null>(null)
+    const [clearingCache, setClearingCache] = useState(false)
+    const helpModalRef = useRef<HTMLDivElement | null>(null)
+    const helpMenuItemRefs = useRef<Array<HTMLButtonElement | null>>([])
+    const helpLauncherRef = useRef<HTMLButtonElement | null>(null)
+    const confirmButtonRef = useRef<HTMLButtonElement | null>(null)
+    const previousFocusRef = useRef<HTMLElement | null>(null)
 
     const clearNotionConnectTimeout = useCallback(() => {
         if (notionConnectTimeoutRef.current !== null) {
@@ -114,6 +156,16 @@ export default function Settings() {
     useEffect(() => {
         getNotionDBs()
     }, [])
+
+    useEffect(() => {
+        if (!helpOpen || appVersion) {
+            return
+        }
+
+        s.GetAppVersion()
+            .then((version) => setAppVersion(version))
+            .catch(() => setAppVersion("development"))
+    }, [helpOpen, appVersion])
 
     useEffect(() => {
         const selected = notionDBs.find((db) => db.id === settings.notion_db_id)
@@ -178,6 +230,130 @@ export default function Settings() {
             clearNotionConnectTimeout()
         }
     }, [clearNotionConnectTimeout])
+
+    useEffect(() => {
+        if (!helpOpen) {
+            return
+        }
+
+        const modal = helpModalRef.current
+        if (!modal) {
+            return
+        }
+
+        previousFocusRef.current = document.activeElement as HTMLElement | null
+
+        const focusInitialElement = () => {
+            if (helpView === "root") {
+                const items = helpMenuItemRefs.current.filter((btn): btn is HTMLButtonElement => Boolean(btn))
+                if (items.length === 0) {
+                    return
+                }
+
+                const targetIndex = items[helpSelectionIndex] ? helpSelectionIndex : 0
+                if (!items[targetIndex]) {
+                    setHelpSelectionIndex(0)
+                    items[0].focus()
+                    return
+                }
+                items[targetIndex].focus()
+                return
+            }
+
+            if (helpView === "resetConfirm" && confirmButtonRef.current) {
+                confirmButtonRef.current.focus()
+                return
+            }
+
+            const defaultFocus = modal.querySelector<HTMLElement>("[data-default-focus='true']")
+            if (defaultFocus) {
+                defaultFocus.focus()
+                return
+            }
+
+            const fallback = modal.querySelector<HTMLElement>(
+                "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])"
+            )
+            fallback?.focus()
+        }
+
+        focusInitialElement()
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.preventDefault()
+                if (helpView !== "root") {
+                    setHelpView("root")
+                    setHelpSelectionIndex(0)
+                } else {
+                    setHelpOpen(false)
+                }
+                return
+            }
+
+            if (event.key === "Tab") {
+                const focusable = Array.from(
+                    modal.querySelectorAll<HTMLElement>(
+                        "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])"
+                    )
+                ).filter((el) => !el.hasAttribute("aria-hidden"))
+
+                if (focusable.length === 0) {
+                    return
+                }
+
+                const first = focusable[0]
+                const last = focusable[focusable.length - 1]
+                if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault()
+                    first.focus()
+                } else if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault()
+                    last.focus()
+                }
+                return
+            }
+
+            if (helpView === "root" && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                const items = helpMenuItemRefs.current.filter((btn): btn is HTMLButtonElement => Boolean(btn))
+                if (!items.length) {
+                    return
+                }
+                event.preventDefault()
+                const direction = event.key === "ArrowDown" ? 1 : -1
+                let nextIndex = helpSelectionIndex + direction
+                if (nextIndex < 0) {
+                    nextIndex = items.length - 1
+                }
+                if (nextIndex >= items.length) {
+                    nextIndex = 0
+                }
+                setHelpSelectionIndex(nextIndex)
+                items[nextIndex].focus()
+            }
+        }
+
+        document.addEventListener("keydown", handleKeyDown)
+        return () => {
+            document.removeEventListener("keydown", handleKeyDown)
+            const previouslyFocused = previousFocusRef.current
+            if (previouslyFocused) {
+                previouslyFocused.focus()
+            }
+        }
+    }, [helpOpen, helpView, helpSelectionIndex])
+
+    useEffect(() => {
+        if (!helpOpen) {
+            setHelpView("root")
+            setHelpSelectionIndex(0)
+            setHelpError(null)
+        }
+    }, [helpOpen])
+
+    useEffect(() => {
+        setHelpError(null)
+    }, [helpView])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target
@@ -351,6 +527,60 @@ export default function Settings() {
         return "info"
     }, [status])
 
+    const openExternal = useCallback((url: string) => {
+        Browser.OpenURL(url)
+    }, [])
+s
+    const helpItems = useMemo(
+        () => [
+            {
+                id: "about",
+                label: "About / Credits",
+                description: "See who built Tasklight and which version you're on.",
+                action: () => setHelpView("about"),
+            },
+            {
+                id: "bug",
+                label: "Report a Bug",
+                description: "Found an issue? Send it to the Tasklight tracker.",
+                action: () => openExternal("https://jamesonzeller.com/tasklight/bugs"),
+            },
+            {
+                id: "feature",
+                label: "Request a Feature",
+                description: "Share the workflow improvements you want next.",
+                action: () => openExternal("https://jamesonzeller.com/tasklight/feature-request"),
+            },
+            {
+                id: "contact",
+                label: "Contact / Feedback",
+                description: "Drop Jameson a note directly from your mail client.",
+                action: () => {
+                    window.location.href = "mailto:hello@jamesonzeller.com"
+                },
+            },
+            {
+                id: "privacy",
+                label: "Privacy & Data",
+                description: "Review how Tasklight handles data and telemetry.",
+                action: () => openExternal("https://jamesonzeller.com/tasklight/privacy"),
+            },
+            {
+                id: "reset",
+                label: "Reset / Clear Cache",
+                description: "Erase cached data and require a fresh sign-in.",
+                action: () => setHelpView("resetConfirm"),
+            },
+            {
+                id: "oss",
+                label: "Open Source / Acknowledgements",
+                description: "Browse the core libraries that make Tasklight possible.",
+                action: () => setHelpView("acknowledgements"),
+            },
+        ],
+        [openExternal, setHelpView]
+    )
+
     const renderGeneral = () => (
         <>
             <section className="settings-card">
@@ -397,6 +627,209 @@ export default function Settings() {
             </section>
         </>
     )
+
+    const handleClearCache = async () => {
+        setHelpError(null)
+        setClearingCache(true)
+        try {
+            const cleared = await s.ClearLocalCache()
+            if (!cleared) {
+                setHelpError("Cache did not clear. Please try again.")
+                return
+            }
+
+            const refreshedSettings = await s.GetSettings()
+            setSettings(refreshedSettings)
+            setNotionDBs([])
+            setHasMultipleDateProps(false)
+            setDateValid(true)
+            setNotionConnecting(false)
+            clearNotionConnectTimeout()
+
+            setStatus("✅ Local cache cleared. Sign in again to reconnect Notion.")
+            setHelpOpen(false)
+        } catch (err: any) {
+            setHelpError("Unable to clear cache: " + (err?.message ?? String(err)))
+        } finally {
+            setClearingCache(false)
+        }
+    }
+
+    const helpBackToRoot = () => {
+        setHelpView("root")
+        setHelpSelectionIndex(0)
+    }
+
+    const renderHelpContent = () => {
+        switch (helpView) {
+            case "about":
+                return (
+                    <div className="help-modal-content">
+                        <header className="help-modal-header">
+                            <button
+                                type="button"
+                                className="help-back"
+                                onClick={helpBackToRoot}
+                                data-default-focus="true"
+                            >
+                                ← Back
+                            </button>
+                            <h2 id="help-modal-title">About Tasklight</h2>
+                            <button
+                                type="button"
+                                className="help-close"
+                                onClick={() => setHelpOpen(false)}
+                                aria-label="Close help"
+                            >
+                                ✕
+                            </button>
+                        </header>
+                        <div className="help-about">
+                            <p>Created by Jameson Zeller</p>
+                            <p>Version: {appVersion || "…"}</p>
+                            <a
+                                href="https://jamesonzeller.com/tasklight"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="help-link"
+                            >
+                                Visit the Tasklight site
+                            </a>
+                        </div>
+                    </div>
+                )
+            case "acknowledgements":
+                return (
+                    <div className="help-modal-content">
+                        <header className="help-modal-header">
+                            <button
+                                type="button"
+                                className="help-back"
+                                onClick={helpBackToRoot}
+                                data-default-focus="true"
+                            >
+                                ← Back
+                            </button>
+                            <h2 id="help-modal-title">Open Source Thanks</h2>
+                            <button
+                                type="button"
+                                className="help-close"
+                                onClick={() => setHelpOpen(false)}
+                                aria-label="Close help"
+                            >
+                                ✕
+                            </button>
+                        </header>
+                        <div className="help-modal-scroll">
+                            <div className="help-oss-list" role="list">
+                                {acknowledgements.map((entry) => (
+                                    <a
+                                        key={entry.name}
+                                        href={entry.url}
+                                        target="_blank"
+                                        rel="noreferrer noopener"
+                                        className="help-oss-item"
+                                        role="listitem"
+                                    >
+                                        <span className="help-oss-name">{entry.name}</span>
+                                        <span className="help-oss-description">{entry.description}</span>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )
+            case "resetConfirm":
+                return (
+                    <div className="help-modal-content">
+                        <header className="help-modal-header">
+                            <button
+                                type="button"
+                                className="help-back"
+                                onClick={helpBackToRoot}
+                                data-default-focus="true"
+                            >
+                                ← Back
+                            </button>
+                            <h2 id="help-modal-title">Reset Local Cache</h2>
+                            <button
+                                type="button"
+                                className="help-close"
+                                onClick={() => setHelpOpen(false)}
+                                aria-label="Close help"
+                            >
+                                ✕
+                            </button>
+                        </header>
+                        <div className="help-confirm">
+                            <p>This will clear local cache and require sign-in again. Continue?</p>
+                            {helpError && <p className="help-error" role="alert">{helpError}</p>}
+                            <div className="help-confirm-actions">
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={helpBackToRoot}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-critical"
+                                    onClick={handleClearCache}
+                                    disabled={clearingCache}
+                                    ref={confirmButtonRef}
+                                >
+                                    {clearingCache ? "Clearing…" : "Yes, clear cache"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            default: {
+                helpMenuItemRefs.current = []
+                return (
+                    <div className="help-modal-content">
+                        <header className="help-modal-header">
+                            <h2 id="help-modal-title">Need a hand?</h2>
+                            <button
+                                type="button"
+                                className="help-close"
+                                onClick={() => setHelpOpen(false)}
+                                aria-label="Close help"
+                                data-default-focus="true"
+                            >
+                                ✕
+                            </button>
+                        </header>
+                        <p className="help-modal-subtitle">
+                            Quick access to support, feedback, and maintenance tools.
+                        </p>
+                        <div className="help-modal-scroll">
+                            <ul className="help-menu" role="menu">
+                                {helpItems.map((item, index) => (
+                                    <li key={item.id} role="none">
+                                        <button
+                                            type="button"
+                                            role="menuitem"
+                                            className="help-menu-item"
+                                            onClick={() => item.action()}
+                                            onFocus={() => setHelpSelectionIndex(index)}
+                                            ref={(el) => {
+                                                helpMenuItemRefs.current[index] = el
+                                            }}
+                                        >
+                                            <span className="help-menu-label">{item.label}</span>
+                                            <span className="help-menu-description">{item.description}</span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                )
+            }
+        }
+    }
 
     const renderShortcuts = () => (
         <section className="settings-card">
@@ -635,6 +1068,41 @@ export default function Settings() {
                                 </div>
                             )}
                         </footer>
+
+                        <button
+                            type="button"
+                            ref={helpLauncherRef}
+                            className="help-fab"
+                            title="Help"
+                            aria-haspopup="dialog"
+                            aria-expanded={helpOpen}
+                            onClick={() => {
+                                setHelpOpen(true)
+                                setHelpView("root")
+                                setHelpSelectionIndex(0)
+                            }}
+                        >
+                            ?
+                        </button>
+
+                        {helpOpen && (
+                            <div
+                                className="help-modal-overlay"
+                                role="presentation"
+                                onClick={() => setHelpOpen(false)}
+                            >
+                                <div
+                                    className="help-modal-shell"
+                                    role="dialog"
+                                    aria-modal="true"
+                                    aria-labelledby="help-modal-title"
+                                    onClick={(event) => event.stopPropagation()}
+                                    ref={helpModalRef}
+                                >
+                                    {renderHelpContent()}
+                                </div>
+                            </div>
+                        )}
                     </main>
                 </div>
             </div>
