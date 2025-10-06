@@ -14,10 +14,13 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+	"sync"
 )
 
 type NotionService struct {
 	settingsservice *settingsservice.SettingsService
+	oauthMu         sync.Mutex
+	oauthInProgress bool
 }
 
 var ErrNotionTokenMissing = errors.New("notion access token unavailable")
@@ -48,8 +51,6 @@ func openBrowser(url string) {
 }
 
 func (n *NotionService) StartOAuth() {
-	go notionauth.StartLocalOAuthListener(n.settingsservice)
-
 	clientID := config.GetEnv("NOTION_CLIENT_ID")
 	redirectURI := config.GetEnv("NOTION_REDIRECT_URI")
 	if redirectURI == "" {
@@ -60,6 +61,16 @@ func (n *NotionService) StartOAuth() {
 		log.Println("⚠️ NOTION_CLIENT_ID is not configured; cannot start OAuth flow")
 		return
 	}
+
+	if !n.beginOAuthListener() {
+		log.Println("ℹ️ Notion OAuth already in progress; ignoring duplicate start request")
+		return
+	}
+
+	go func() {
+		defer n.endOAuthListener()
+		notionauth.StartLocalOAuthListener(n.settingsservice)
+	}()
 
 	authURL := url.URL{
 		Scheme: "https",
@@ -77,6 +88,24 @@ func (n *NotionService) StartOAuth() {
 
 	log.Println("🔍 Launching Notion OAuth:", authURL.String())
 	openBrowser(authURL.String())
+}
+
+func (n *NotionService) beginOAuthListener() bool {
+	n.oauthMu.Lock()
+	defer n.oauthMu.Unlock()
+
+	if n.oauthInProgress {
+		return false
+	}
+
+	n.oauthInProgress = true
+	return true
+}
+
+func (n *NotionService) endOAuthListener() {
+	n.oauthMu.Lock()
+	n.oauthInProgress = false
+	n.oauthMu.Unlock()
 }
 
 type Filter struct {
@@ -114,8 +143,8 @@ type PropertyObj struct {
 }
 
 func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
-    NotionSecret := config.AppConfig.NotionAccessToken
-    NotionSearchURL := "https://api.notion.com/v1/search"
+	NotionSecret := config.AppConfig.NotionAccessToken
+	NotionSearchURL := "https://api.notion.com/v1/search"
 
 	data := NotionSearchRequest{Filter{
 		Value:    "database",

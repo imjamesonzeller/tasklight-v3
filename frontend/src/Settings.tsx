@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react"
+import {useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {SettingsService as s} from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
 import {DatabaseMinimal, NotionService as n,} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css"
@@ -82,12 +82,21 @@ export default function Settings() {
     })
 
     const [status, setStatus] = useState("")
+    const [notionConnecting, setNotionConnecting] = useState(false)
     const [notionDBs, setNotionDBs] = useState<DatabaseMinimal[]>([])
     const [hasMultipleDateProps, setHasMultipleDateProps] = useState(false)
     const [dateValid, setDateValid] = useState(true)
     const [recordingHotkey, setRecordingHotkey] = useState(false)
     const [openAIKey, setOpenAIKey] = useState("")
     const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("general")
+    const notionConnectTimeoutRef = useRef<number | null>(null)
+
+    const clearNotionConnectTimeout = useCallback(() => {
+        if (notionConnectTimeoutRef.current !== null) {
+            window.clearTimeout(notionConnectTimeoutRef.current)
+            notionConnectTimeoutRef.current = null
+        }
+    }, [])
 
     useEffect(() => {
         document.body.dataset.theme = settings.theme === "dark" ? "dark" : "light"
@@ -142,6 +151,9 @@ export default function Settings() {
     useEffect(() => {
         const off = Events.On("Backend:NotionAccessToken", async (ev) => {
             const success = ev.data as boolean
+            clearNotionConnectTimeout()
+            setNotionConnecting(false)
+
             if (success) {
                 try {
                     const updatedSettings = await s.GetSettings()
@@ -163,8 +175,9 @@ export default function Settings() {
 
         return () => {
             off()
+            clearNotionConnectTimeout()
         }
-    }, [])
+    }, [clearNotionConnectTimeout])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target
@@ -216,10 +229,22 @@ export default function Settings() {
     }
 
     const connectNotion = async () => {
+        if (notionConnecting) {
+            return
+        }
+
         try {
+            setNotionConnecting(true)
+            clearNotionConnectTimeout()
+            notionConnectTimeoutRef.current = window.setTimeout(() => {
+                setNotionConnecting(false)
+                setStatus("⚠️ Notion authorization timed out. Try again.")
+            }, 120000)
             setStatus("🔄 Opening Notion authorization…")
             await n.StartOAuth()
         } catch (err: any) {
+            clearNotionConnectTimeout()
+            setNotionConnecting(false)
             setStatus("❌ Failed to connect Notion: " + (err.message ?? String(err)))
         }
     }
@@ -469,8 +494,17 @@ export default function Settings() {
                     >
                         {notionConnected ? "Connected" : "Not connected"}
                     </span>
-                    <button type="button" onClick={connectNotion} className="btn btn-primary">
-                        {notionConnected ? "Manage connection" : "Connect to Notion"}
+                    <button
+                        type="button"
+                        onClick={connectNotion}
+                        className="btn btn-primary"
+                        disabled={notionConnecting}
+                    >
+                        {notionConnecting
+                            ? "Waiting for Notion…"
+                            : notionConnected
+                              ? "Manage connection"
+                              : "Connect to Notion"}
                     </button>
                 </div>
             </section>

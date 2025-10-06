@@ -58,7 +58,7 @@ func StartLocalOAuthListener(settings *settingsservice.SettingsService) {
 	log.Printf("main: stopping HTTP server")
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
-		panic(err)
+		log.Printf("⚠️ Failed to stop Notion OAuth listener: %v", err)
 	}
 
 	httpServerExitDone.Wait()
@@ -120,8 +120,8 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 	go func() {
 		defer wg.Done()
 
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("ListenAndServe(): %v", err)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("⚠️ Notion OAuth listener exited unexpectedly: %v", err)
 		}
 	}()
 
