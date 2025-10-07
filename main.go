@@ -39,8 +39,8 @@ func main() {
 	greetService := &GreetService{}
 	windowService := NewWindowService()
 	startupService := startupservice.NewStartupService()
-	taskService := NewTaskService(windowService)
 	settingsService := settingsservice.NewSettingsService(startupService)
+	taskService := NewTaskService(windowService, settingsService)
 	hotkeyService := NewHotkeyService(windowService, settingsService)
 	notionService := NewNotionService(settingsService)
 

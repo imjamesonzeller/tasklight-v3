@@ -154,8 +154,12 @@ export default function Settings() {
     }, [])
 
     useEffect(() => {
+        if (!settings.has_notion_secret) {
+            setNotionDBs([])
+            return
+        }
         getNotionDBs()
-    }, [])
+    }, [settings.has_notion_secret])
 
     useEffect(() => {
         if (!helpOpen || appVersion) {
@@ -456,7 +460,7 @@ export default function Settings() {
                 has_openai_key: false,
                 use_open_ai: false,
             }))
-            setStatus("✅ OpenAI key cleared from Keychain.")
+            setStatus("✅ OpenAI key cleared from Apple Keychain.")
         } catch (err: any) {
             setStatus("❌ Failed to clear OpenAI key: " + (err.message ?? String(err)))
         }
@@ -862,7 +866,7 @@ s
         <section className="settings-card">
             <header className="settings-card-header">
                 <h2>Bring Your Own Key</h2>
-                <p>Run parsing through your OpenAI account, stored securely in Keychain.</p>
+                <p>Run parsing through your OpenAI account, stored securely in your Apple Keychain.</p>
             </header>
 
             <label className="toggle">
@@ -884,7 +888,7 @@ s
             {settings.use_open_ai && (
                 <div className="settings-field">
                     <label className="field-label">OpenAI API key</label>
-                    <p className="field-helper">Tasklight only stores this encrypted in your macOS Keychain.</p>
+                    <p className="field-helper">Tasklight only stores this encrypted in your Apple Keychain.</p>
                     <div className="hotkey-row">
                         <input
                             type="password"
@@ -894,7 +898,7 @@ s
                             onChange={handleOpenAIChange}
                             placeholder={
                                 settings.has_openai_key
-                                    ? "Stored securely in Keychain"
+                                    ? "Stored securely in Apple Keychain"
                                     : "sk-live-..."
                             }
                             className="input-control"
@@ -940,6 +944,9 @@ s
                               : "Connect to Notion"}
                     </button>
                 </div>
+                <p className="field-helper">
+                    Tasklight keeps your Notion integration token securely in your Apple Keychain.
+                </p>
             </section>
 
             <section className="settings-card">

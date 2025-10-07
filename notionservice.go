@@ -8,6 +8,7 @@ import (
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/notionauth"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
+	"github.com/keybase/go-keychain"
 	"io"
 	"log"
 	"net/http"
@@ -143,7 +144,17 @@ type PropertyObj struct {
 }
 
 func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
-	NotionSecret := config.AppConfig.NotionAccessToken
+	notionSecret, err := n.settingsservice.GetNotionToken(false)
+	if err != nil {
+		if errors.Is(err, keychain.ErrorItemNotFound) {
+			return nil, ErrNotionTokenMissing
+		}
+		return nil, err
+	}
+
+	if notionSecret == "" {
+		return nil, ErrNotionTokenMissing
+	}
 	NotionSearchURL := "https://api.notion.com/v1/search"
 
 	data := NotionSearchRequest{Filter{
@@ -161,7 +172,7 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 		return nil, err
 	}
 
-	r.Header.Add("Authorization", "Bearer "+NotionSecret)
+	r.Header.Add("Authorization", "Bearer "+notionSecret)
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Notion-Version", "2022-06-28")
 
@@ -212,7 +223,14 @@ func (n *NotionService) GetNotionDatabases() (*NotionDBResponse, error) {
 }
 
 func (n *NotionService) GetNotionWorkspaceId() (string, error) {
-	notionToken := config.AppConfig.NotionAccessToken
+	notionToken, err := n.settingsservice.GetNotionToken(false)
+	if err != nil {
+		if errors.Is(err, keychain.ErrorItemNotFound) {
+			return "", ErrNotionTokenMissing
+		}
+		return "", err
+	}
+
 	if notionToken == "" {
 		return "", ErrNotionTokenMissing
 	}

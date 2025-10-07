@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	c "github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/openai/openai-go/option"
 	"io"
 	"log"
@@ -25,11 +26,13 @@ type TaskInformation struct {
 type TaskService struct {
 	app           *application.App
 	windowService *WindowService
+	settings      *settingsservice.SettingsService
 }
 
-func NewTaskService(windowService *WindowService) *TaskService {
+func NewTaskService(windowService *WindowService, settings *settingsservice.SettingsService) *TaskService {
 	return &TaskService{
 		windowService: windowService,
+		settings:      settings,
 	}
 }
 
@@ -77,11 +80,20 @@ func (ts *TaskService) ProcessedThroughAI(input string) TaskInformation {
 
 // selectOpenAIKey decides which key to use and returns (key, userProvided)
 func (ts *TaskService) selectOpenAIKey() (string, bool) {
-	userProvided := c.AppConfig.UseOpenAI && c.AppConfig.OpenAIAPIKey != ""
-	if userProvided {
-		return c.AppConfig.OpenAIAPIKey, true
+	if !c.AppConfig.UseOpenAI {
+		return "", false
 	}
-	return "", false
+
+	key, err := ts.settings.GetOpenAIKey()
+	if err != nil {
+		log.Println("selectOpenAIKey: failed to load OpenAI key:", err)
+		return "", false
+	}
+	if key == "" {
+		return "", false
+	}
+
+	return key, true
 }
 
 // buildParsePrompt returns the exact prompt text for parsing
@@ -177,6 +189,16 @@ func parseTaskFromContent(content string) (TaskInformation, error) {
 }
 
 func (ts *TaskService) SendToNotion(task TaskInformation) string {
+	token, err := ts.settings.GetNotionToken(true)
+	if err != nil || token == "" {
+		msg := "Notion token unavailable; reconnect Notion from settings"
+		if err != nil {
+			log.Println("SendToNotion: failed to load token:", err)
+			msg = "Failed to load Notion token"
+		}
+		return msg
+	}
+
 	postBody := buildNotionPagePayload(task)
 
 	jsonData, err := json.Marshal(postBody)
@@ -192,7 +214,7 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 		return msg
 	}
 
-	req.Header.Add("Authorization", "Bearer "+c.AppConfig.NotionAccessToken)
+	req.Header.Add("Authorization", "Bearer "+token)
 	req.Header.Add("Content-Type", "application/json; charset=utf-8")
 	req.Header.Add("Notion-Version", "2022-06-28")
 

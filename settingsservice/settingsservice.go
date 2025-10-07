@@ -52,6 +52,8 @@ type ApplicationSettings struct {
 	// ====== Secrets ======
 	NotionAccessToken string `json:"notion_access_token,omitempty"`
 	OpenAIAPIKey      string `json:"openai_api_key,omitempty"`
+	HasNotionSecret   bool   `json:"has_notion_secret"`
+	HasOpenAIKey      bool   `json:"has_openai_key"`
 }
 
 type FrontendSettings struct {
@@ -161,6 +163,8 @@ func (s *SettingsService) ClearLocalCache() (bool, error) {
 	if keychainDisabled() {
 		s.AppSettings.NotionAccessToken = ""
 		s.AppSettings.OpenAIAPIKey = ""
+		s.AppSettings.HasNotionSecret = false
+		s.AppSettings.HasOpenAIKey = false
 	} else {
 		if err := clearSecret(keychainNotionToken); err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
 			errs = append(errs, err)
@@ -168,6 +172,8 @@ func (s *SettingsService) ClearLocalCache() (bool, error) {
 		if err := clearSecret(keychainOpenAIKey); err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
 			errs = append(errs, err)
 		}
+		s.AppSettings.HasNotionSecret = false
+		s.AppSettings.HasOpenAIKey = false
 	}
 
 	if s.settingsPath == "" {
@@ -292,34 +298,120 @@ func clearSecret(label string) error {
 // ====== Secret Setters ======
 
 func (s *SettingsService) SaveNotionToken(token string) error {
+	sanitized := strings.TrimSpace(token)
+
 	if keychainDisabled() {
-		s.AppSettings.NotionAccessToken = token
-		return nil
+		s.AppSettings.NotionAccessToken = sanitized
+	} else {
+		if err := UpdateSecret(keychainNotionToken, sanitized); err != nil {
+			return err
+		}
+		s.AppSettings.NotionAccessToken = sanitized
 	}
-	return UpdateSecret(keychainNotionToken, token)
+
+	s.AppSettings.HasNotionSecret = sanitized != ""
+	if sanitized == "" {
+		s.AppSettings.NotionAccessToken = ""
+	}
+
+	s.SaveSettings()
+	return nil
 }
 
 func (s *SettingsService) SaveOpenAIKey(key string) error {
 	if keychainDisabled() {
 		s.AppSettings.OpenAIAPIKey = key
-		return nil
-	}
-	err := UpdateSecret(keychainOpenAIKey, key)
-	if err != nil {
-		return err
+	} else {
+		err := UpdateSecret(keychainOpenAIKey, key)
+		if err != nil {
+			return err
+		}
+		s.AppSettings.OpenAIAPIKey = key
 	}
 
-	s.AppSettings.OpenAIAPIKey = key
+	s.AppSettings.HasOpenAIKey = strings.TrimSpace(key) != ""
 
+	s.SaveSettings()
 	return nil
 }
 
 func (s *SettingsService) ClearOpenAIKey() error {
 	if keychainDisabled() {
 		s.AppSettings.OpenAIAPIKey = ""
-		return nil
+	} else {
+		if err := clearSecret(keychainOpenAIKey); err != nil && !errors.Is(err, keychain.ErrorItemNotFound) {
+			return err
+		}
 	}
-	return clearSecret(keychainOpenAIKey)
+
+	s.AppSettings.OpenAIAPIKey = ""
+	s.AppSettings.HasOpenAIKey = false
+	s.SaveSettings()
+	return nil
+}
+
+func (s *SettingsService) GetNotionToken(forceLookup bool) (string, error) {
+	if s.AppSettings.NotionAccessToken != "" {
+		return s.AppSettings.NotionAccessToken, nil
+	}
+
+	if keychainDisabled() {
+		return s.AppSettings.NotionAccessToken, nil
+	}
+
+	if !s.AppSettings.HasNotionSecret && !forceLookup {
+		return "", keychain.ErrorItemNotFound
+	}
+
+	wasMissing := !s.AppSettings.HasNotionSecret
+
+	token, err := LoadSecret(keychainNotionToken)
+	if err != nil {
+		if errors.Is(err, keychain.ErrorItemNotFound) {
+			s.AppSettings.HasNotionSecret = false
+			s.SaveSettings()
+		}
+		return "", err
+	}
+
+	s.AppSettings.NotionAccessToken = token
+	s.AppSettings.HasNotionSecret = token != ""
+	if token != "" && forceLookup && wasMissing {
+		s.SaveSettings()
+	}
+	return token, nil
+}
+
+func (s *SettingsService) GetOpenAIKey() (string, error) {
+	if s.AppSettings.OpenAIAPIKey != "" {
+		return s.AppSettings.OpenAIAPIKey, nil
+	}
+
+	if keychainDisabled() {
+		return s.AppSettings.OpenAIAPIKey, nil
+	}
+
+	if !s.AppSettings.HasOpenAIKey {
+		return "", keychain.ErrorItemNotFound
+	}
+
+	wasMissing := !s.AppSettings.HasOpenAIKey
+
+	key, err := LoadSecret(keychainOpenAIKey)
+	if err != nil {
+		if errors.Is(err, keychain.ErrorItemNotFound) {
+			s.AppSettings.HasOpenAIKey = false
+			s.SaveSettings()
+		}
+		return "", err
+	}
+
+	s.AppSettings.OpenAIAPIKey = key
+	s.AppSettings.HasOpenAIKey = key != ""
+	if key != "" && wasMissing {
+		s.SaveSettings()
+	}
+	return key, nil
 }
 
 // ====== Settings Load/Save ======
@@ -334,9 +426,11 @@ func (s *SettingsService) LoadSettings() {
 		_ = json.Unmarshal(data, &s.AppSettings)
 	}
 
-	if !keychainDisabled() {
-		s.AppSettings.NotionAccessToken, _ = LoadSecret(keychainNotionToken)
-		s.AppSettings.OpenAIAPIKey, _ = LoadSecret(keychainOpenAIKey)
+	if !s.AppSettings.HasNotionSecret && s.AppSettings.NotionDBID != "" {
+		s.AppSettings.HasNotionSecret = true
+	}
+	if !s.AppSettings.HasOpenAIKey && s.AppSettings.UseOpenAI {
+		s.AppSettings.HasOpenAIKey = true
 	}
 }
 
@@ -384,15 +478,8 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 		_ = json.Unmarshal(hotkeyJSON, &frontend.Hotkey)
 	}
 
-	// Load secret flags
-	if !keychainDisabled() {
-		if token, err := LoadSecret(keychainNotionToken); err == nil && token != "" {
-			frontend.HasConnectedNotion = true
-		}
-		if key, err := LoadSecret(keychainOpenAIKey); err == nil && key != "" {
-			frontend.HasOpenAIAPIKey = true
-		}
-	}
+	frontend.HasConnectedNotion = s.AppSettings.HasNotionSecret
+	frontend.HasOpenAIAPIKey = s.AppSettings.HasOpenAIKey
 
 	s.FrontendOverrides = frontend
 	return frontend, nil
@@ -412,13 +499,8 @@ func (s *SettingsService) UpdateSettingsFromFrontend(raw map[string]interface{})
 	var newSettings ApplicationSettings
 	_ = json.Unmarshal(data, &newSettings)
 	newSettings.Hotkey = hotkeyCfg
-
-	if newSettings.NotionAccessToken == "" && !keychainDisabled() {
-		newSettings.NotionAccessToken, _ = LoadSecret(keychainNotionToken)
-	}
-	if newSettings.OpenAIAPIKey == "" && !keychainDisabled() {
-		newSettings.OpenAIAPIKey, _ = LoadSecret(keychainOpenAIKey)
-	}
+	newSettings.NotionAccessToken = s.AppSettings.NotionAccessToken
+	newSettings.OpenAIAPIKey = s.AppSettings.OpenAIAPIKey
 
 	if launchRaw, ok := raw["launch_on_startup"].(bool); ok {
 		if launchRaw {

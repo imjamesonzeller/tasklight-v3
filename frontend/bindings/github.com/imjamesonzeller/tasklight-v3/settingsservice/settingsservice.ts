@@ -28,6 +28,16 @@ export function GetAppVersion(): Promise<string> & { cancel(): void } {
     return $resultPromise;
 }
 
+export function GetNotionToken(forceLookup: boolean): Promise<string> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(2126251096, forceLookup) as any;
+    return $resultPromise;
+}
+
+export function GetOpenAIKey(): Promise<string> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(1252190615) as any;
+    return $resultPromise;
+}
+
 export function GetSettings(): Promise<$models.FrontendSettings> & { cancel(): void } {
     let $resultPromise = $Call.ByID(1299891847) as any;
     let $typingPromise = $resultPromise.then(($result: any) => {
