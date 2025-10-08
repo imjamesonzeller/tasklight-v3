@@ -1037,7 +1037,7 @@ s
             <section className="settings-card">
                 <header className="settings-card-header">
                     <h2>Notion Connection</h2>
-                    <p>Authorise Tasklight and pick the database that receives new tasks.</p>
+                    <p>Authorise Tasklight and pick the data source that receives new tasks.</p>
                 </header>
                 <div className="notion-connection">
                     <span
@@ -1067,9 +1067,22 @@ s
 
             <section className="settings-card">
                 <header className="settings-card-header">
-                    <h2>Database & Date Property</h2>
+                    <h2>Data Source & Date Property</h2>
                     <p>Tell Tasklight where to store tasks and which date field to hydrate.</p>
                 </header>
+                <p className="field-helper">
+                    Unsure what a data source covers?{" "}
+                    <a
+                        href="https://www.notion.com/help/data-sources-and-linked-databases"
+                        className="help-link"
+                        onClick={(event) => {
+                            event.preventDefault()
+                            Browser.OpenURL("https://www.notion.com/help/data-sources-and-linked-databases")
+                        }}
+                    >
+                        Learn how it differs from linked databases.
+                    </a>
+                </p>
                 <div className="settings-field">
                     <label className="field-label">Data source</label>
                     {!settings.has_notion_secret ? (
