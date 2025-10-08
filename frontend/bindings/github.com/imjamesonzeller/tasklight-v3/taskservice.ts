@@ -30,6 +30,9 @@ export function ProcessedThroughAI(input: string): Promise<$models.TaskInformati
     return $typingPromise;
 }
 
+/**
+ * TODO: Migrate to the new notion API
+ */
 export function SendToNotion(task: $models.TaskInformation): Promise<string> & { cancel(): void } {
     let $resultPromise = $Call.ByID(3832318902, task) as any;
     return $resultPromise;

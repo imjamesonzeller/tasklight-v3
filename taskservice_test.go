@@ -77,18 +77,18 @@ func TestBuildNotionPagePayload(t *testing.T) {
 
 	date := "2024-10-02"
 	c.AppConfig = &settingsservice.ApplicationSettings{
-		NotionDBID:       "db-123",
-		DatePropertyName: "Due",
+		NotionDataSourceID: "ds-456",
+		DatePropertyName:   "Due",
 	}
 
-	payload := buildNotionPagePayload(TaskInformation{Title: "Plan", Date: &date})
+	payload := buildNotionPagePayload(TaskInformation{Title: "Plan", Date: &date}, "ds-456", "Name", "Due")
 
 	parent, ok := payload["parent"].(map[string]any)
 	if !ok {
 		t.Fatalf("parent field missing or wrong type")
 	}
-	if parent["database_id"] != "db-123" {
-		t.Fatalf("unexpected database id: %v", parent["database_id"])
+	if parent["data_source_id"] != "ds-456" {
+		t.Fatalf("unexpected data source id: %v", parent["data_source_id"])
 	}
 
 	props, ok := payload["properties"].(map[string]any)
@@ -117,6 +117,67 @@ func TestBuildNotionPagePayload(t *testing.T) {
 	dateMap, ok := dueProp["date"].(map[string]any)
 	if !ok || dateMap["start"] != date {
 		t.Fatalf("unexpected date payload: %v", dueProp)
+	}
+}
+
+func TestBuildNotionPagePayloadWithoutDate(t *testing.T) {
+	t.Parallel()
+
+	payload := buildNotionPagePayload(TaskInformation{Title: "Plan", Date: nil}, "ds-456", "Name", "")
+
+	parent := payload["parent"].(map[string]any)
+	if parent["data_source_id"] != "ds-456" {
+		t.Fatalf("unexpected data source id: %v", parent["data_source_id"])
+	}
+
+	props := payload["properties"].(map[string]any)
+	if _, ok := props["Name"]; !ok {
+		t.Fatalf("expected title property")
+	}
+	if len(props) != 1 {
+		t.Fatalf("only title property expected, got %d", len(props))
+	}
+}
+
+func TestDetectTitleProperty(t *testing.T) {
+	t.Parallel()
+
+	detail := &NotionDataSourceDetail{
+		Properties: map[string]PropertyObj{
+			"Title": {
+				Name: "Title",
+				Type: "title",
+			},
+			"Status": {
+				Name: "Status",
+				Type: "select",
+			},
+		},
+	}
+
+	name, err := detectTitleProperty(detail)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "Title" {
+		t.Fatalf("expected Title, got %s", name)
+	}
+}
+
+func TestDetectTitlePropertyMissing(t *testing.T) {
+	t.Parallel()
+
+	detail := &NotionDataSourceDetail{
+		Properties: map[string]PropertyObj{
+			"Status": {
+				Name: "Status",
+				Type: "select",
+			},
+		},
+	}
+
+	if _, err := detectTitleProperty(detail); err == nil {
+		t.Fatal("expected error when title property missing")
 	}
 }
 

@@ -5,52 +5,44 @@
 // @ts-ignore: Unused imports
 import {Create as $Create} from "@wailsio/runtime";
 
-export class DatabaseMinimal {
+export class NotionDataSourceDetail {
     "id": string;
-    "title": RichTextObj[];
+    "name": string;
     "properties": { [_: string]: PropertyObj };
-    "has_multiple_date_props": boolean;
 
-    /** Creates a new DatabaseMinimal instance. */
-    constructor($$source: Partial<DatabaseMinimal> = {}) {
+    /** Creates a new NotionDataSourceDetail instance. */
+    constructor($$source: Partial<NotionDataSourceDetail> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
         }
-        if (!("title" in $$source)) {
-            this["title"] = [];
+        if (!("name" in $$source)) {
+            this["name"] = "";
         }
         if (!("properties" in $$source)) {
             this["properties"] = {};
-        }
-        if (!("has_multiple_date_props" in $$source)) {
-            this["has_multiple_date_props"] = false;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new DatabaseMinimal instance from a string or object.
+     * Creates a new NotionDataSourceDetail instance from a string or object.
      */
-    static createFrom($$source: any = {}): DatabaseMinimal {
-        const $$createField1_0 = $$createType1;
-        const $$createField2_0 = $$createType3;
+    static createFrom($$source: any = {}): NotionDataSourceDetail {
+        const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("title" in $$parsedSource) {
-            $$parsedSource["title"] = $$createField1_0($$parsedSource["title"]);
-        }
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField2_0($$parsedSource["properties"]);
         }
-        return new DatabaseMinimal($$parsedSource as Partial<DatabaseMinimal>);
+        return new NotionDataSourceDetail($$parsedSource as Partial<NotionDataSourceDetail>);
     }
 }
 
-export class NotionDBResponse {
-    "results": DatabaseMinimal[];
+export class NotionDataSourceList {
+    "results": NotionDataSourceSummary[];
 
-    /** Creates a new NotionDBResponse instance. */
-    constructor($$source: Partial<NotionDBResponse> = {}) {
+    /** Creates a new NotionDataSourceList instance. */
+    constructor($$source: Partial<NotionDataSourceList> = {}) {
         if (!("results" in $$source)) {
             this["results"] = [];
         }
@@ -59,15 +51,41 @@ export class NotionDBResponse {
     }
 
     /**
-     * Creates a new NotionDBResponse instance from a string or object.
+     * Creates a new NotionDataSourceList instance from a string or object.
      */
-    static createFrom($$source: any = {}): NotionDBResponse {
-        const $$createField0_0 = $$createType5;
+    static createFrom($$source: any = {}): NotionDataSourceList {
+        const $$createField0_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("results" in $$parsedSource) {
             $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
         }
-        return new NotionDBResponse($$parsedSource as Partial<NotionDBResponse>);
+        return new NotionDataSourceList($$parsedSource as Partial<NotionDataSourceList>);
+    }
+}
+
+export class NotionDataSourceSummary {
+    "id": string;
+    "name": string;
+    "parent_database_id"?: string;
+
+    /** Creates a new NotionDataSourceSummary instance. */
+    constructor($$source: Partial<NotionDataSourceSummary> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NotionDataSourceSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NotionDataSourceSummary {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NotionDataSourceSummary($$parsedSource as Partial<NotionDataSourceSummary>);
     }
 }
 
@@ -100,31 +118,6 @@ export class PropertyObj {
     }
 }
 
-export class RichTextObj {
-    "text": TextContent;
-
-    /** Creates a new RichTextObj instance. */
-    constructor($$source: Partial<RichTextObj> = {}) {
-        if (!("text" in $$source)) {
-            this["text"] = (new TextContent());
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RichTextObj instance from a string or object.
-     */
-    static createFrom($$source: any = {}): RichTextObj {
-        const $$createField0_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
-        }
-        return new RichTextObj($$parsedSource as Partial<RichTextObj>);
-    }
-}
-
 export class TaskInformation {
     "title": string;
     "date": string | null;
@@ -150,32 +143,8 @@ export class TaskInformation {
     }
 }
 
-export class TextContent {
-    "content": string;
-
-    /** Creates a new TextContent instance. */
-    constructor($$source: Partial<TextContent> = {}) {
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TextContent instance from a string or object.
-     */
-    static createFrom($$source: any = {}): TextContent {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TextContent($$parsedSource as Partial<TextContent>);
-    }
-}
-
 // Private type creation functions
-const $$createType0 = RichTextObj.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = PropertyObj.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $$createType2);
-const $$createType4 = DatabaseMinimal.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = TextContent.createFrom;
+const $$createType0 = PropertyObj.createFrom;
+const $$createType1 = $Create.Map($Create.Any, $$createType0);
+const $$createType2 = NotionDataSourceSummary.createFrom;
+const $$createType3 = $Create.Array($$createType2);

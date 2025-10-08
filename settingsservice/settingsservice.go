@@ -40,10 +40,10 @@ func keychainDisabled() bool {
 }
 
 type ApplicationSettings struct {
-	NotionDBID string       `json:"notion_db_id"`
-	UseOpenAI  bool         `json:"use_open_ai"`
-	Theme      string       `json:"theme"`
-	Hotkey     hotkeyConfig `json:"hotkey"`
+	NotionDataSourceID string       `json:"notion_data_source_id"`
+	UseOpenAI          bool         `json:"use_open_ai"`
+	Theme              string       `json:"theme"`
+	Hotkey             hotkeyConfig `json:"hotkey"`
 
 	// ====== Date Property Shiznit ======
 	DatePropertyID   string `json:"date_property_id"`
@@ -57,7 +57,7 @@ type ApplicationSettings struct {
 }
 
 type FrontendSettings struct {
-	NotionDBID         string `json:"notion_db_id"`
+	NotionDataSourceID string `json:"notion_data_source_id"`
 	UseOpenAI          bool   `json:"use_open_ai"`
 	Theme              string `json:"theme"`
 	LaunchOnStartup    bool   `json:"launch_on_startup"`
@@ -426,7 +426,7 @@ func (s *SettingsService) LoadSettings() {
 		_ = json.Unmarshal(data, &s.AppSettings)
 	}
 
-	if !s.AppSettings.HasNotionSecret && s.AppSettings.NotionDBID != "" {
+	if !s.AppSettings.HasNotionSecret && s.AppSettings.NotionDataSourceID != "" {
 		s.AppSettings.HasNotionSecret = true
 	}
 	if !s.AppSettings.HasOpenAIKey && s.AppSettings.UseOpenAI {
@@ -467,7 +467,7 @@ func (s *SettingsService) GetSettings() (FrontendSettings, error) {
 	frontend.UseOpenAI = s.AppSettings.UseOpenAI
 	frontend.Theme = s.AppSettings.Theme
 	frontend.LaunchOnStartup = s.StartupService.IsEnabled()
-	frontend.NotionDBID = s.AppSettings.NotionDBID
+	frontend.NotionDataSourceID = s.AppSettings.NotionDataSourceID
 	frontend.DatePropertyID = s.AppSettings.DatePropertyID
 	frontend.DatePropertyName = s.AppSettings.DatePropertyName
 

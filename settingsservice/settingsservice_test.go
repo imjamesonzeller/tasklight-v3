@@ -20,7 +20,7 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	startup := startupservice.NewStartupService()
 	svc := NewSettingsService(startup)
 
-	svc.AppSettings.NotionDBID = "db-42"
+	svc.AppSettings.NotionDataSourceID = "ds-42"
 	svc.AppSettings.Theme = "dark"
 	svc.AppSettings.Hotkey = hotkeyConfig{
 		Modifiers: []hotkey.Modifier{hotkey.ModCmd},
@@ -40,8 +40,8 @@ func TestSaveAndLoadSettings(t *testing.T) {
 	}
 
 	svcReload := NewSettingsService(startupservice.NewStartupService())
-	if svcReload.AppSettings.NotionDBID != "db-42" {
-		t.Fatalf("expected notion db id to persist, got %s", svcReload.AppSettings.NotionDBID)
+	if svcReload.AppSettings.NotionDataSourceID != "ds-42" {
+		t.Fatalf("expected notion data source id to persist, got %s", svcReload.AppSettings.NotionDataSourceID)
 	}
 	if svcReload.AppSettings.Theme != "dark" {
 		t.Fatalf("expected theme to persist, got %s", svcReload.AppSettings.Theme)

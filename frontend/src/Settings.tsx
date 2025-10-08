@@ -1,49 +1,13 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {SettingsService as s} from "../bindings/github.com/imjamesonzeller/tasklight-v3/settingsservice"
-import {DatabaseMinimal, NotionService as n,} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
+import {
+    NotionDataSourceDetail,
+    NotionDataSourceSummary,
+    NotionService as n,
+} from "../bindings/github.com/imjamesonzeller/tasklight-v3"
 import "../public/settings.css"
 import {Events, Browser} from "@wailsio/runtime"
 import {PauseHotkey, ResumeHotkey} from "../bindings/github.com/imjamesonzeller/tasklight-v3/hotkeyservice.ts"
-
-type SelectNotionDBProps = {
-    databases: DatabaseMinimal[]
-    value: string
-    onChange: (value: string) => void
-    className?: string
-    disabled?: boolean
-}
-
-function SelectNotionDB({ databases, value, onChange, className, disabled }: SelectNotionDBProps) {
-    const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        onChange(event.target.value)
-    }
-
-    const selectClasses = ["input-control", "select-control", className]
-        .filter(Boolean)
-        .join(" ")
-
-    const isDisabled = disabled || databases.length === 0
-
-    return (
-        <div className={`select-wrapper${isDisabled ? " select-wrapper--disabled" : ""}`}>
-            <select
-                value={value}
-                onChange={handleChange}
-                className={selectClasses}
-                disabled={isDisabled}
-            >
-                <option value="" disabled>
-                    {databases.length === 0 ? "No databases available" : "Select a database"}
-                </option>
-                {databases.map((db) => (
-                    <option key={db.id} value={db.id}>
-                        {db.title?.[0]?.text?.content || `Untitled (${db.id.slice(0, 6)}…)`}
-                    </option>
-                ))}
-            </select>
-        </div>
-    )
-}
 
 const tabs = [
     {
@@ -101,7 +65,7 @@ const acknowledgements: Acknowledgement[] = [
 
 export default function Settings() {
     const [settings, setSettings] = useState({
-        notion_db_id: "",
+        notion_data_source_id: "",
         use_open_ai: false,
         theme: "light",
         launch_on_startup: false,
@@ -114,7 +78,11 @@ export default function Settings() {
 
     const [status, setStatus] = useState("")
     const [notionConnecting, setNotionConnecting] = useState(false)
-    const [notionDBs, setNotionDBs] = useState<DatabaseMinimal[]>([])
+    const [dataSources, setDataSources] = useState<NotionDataSourceSummary[]>([])
+    const [sourcesLoading, setSourcesLoading] = useState(false)
+    const [sourcesLoaded, setSourcesLoaded] = useState(false)
+    const [dataSourceDetail, setDataSourceDetail] = useState<NotionDataSourceDetail | null>(null)
+    const [schemaLoading, setSchemaLoading] = useState(false)
     const [hasMultipleDateProps, setHasMultipleDateProps] = useState(false)
     const [dateValid, setDateValid] = useState(true)
     const [recordingHotkey, setRecordingHotkey] = useState(false)
@@ -132,6 +100,25 @@ export default function Settings() {
     const helpLauncherRef = useRef<HTMLButtonElement | null>(null)
     const confirmButtonRef = useRef<HTMLButtonElement | null>(null)
     const previousFocusRef = useRef<HTMLElement | null>(null)
+
+    const dateProperties = useMemo(
+        () =>
+            Object.entries(dataSourceDetail?.properties ?? {}).filter(
+                ([, prop]) => prop.type === "date"
+            ),
+        [dataSourceDetail]
+    )
+
+    const formatDataSourceLabel = useCallback((source: NotionDataSourceSummary) => {
+        const trimmed = source.name?.trim()
+        if (trimmed) {
+            return trimmed
+        }
+        if (!source.id) {
+            return "Unnamed data source"
+        }
+        return `${source.id.slice(0, 6)}…`
+    }, [])
 
     const clearNotionConnectTimeout = useCallback(() => {
         if (notionConnectTimeoutRef.current !== null) {
@@ -155,10 +142,12 @@ export default function Settings() {
 
     useEffect(() => {
         if (!settings.has_notion_secret) {
-            setNotionDBs([])
+            setDataSources([])
+            setSourcesLoading(false)
+            setSourcesLoaded(false)
             return
         }
-        getNotionDBs()
+        getNotionDataSources()
     }, [settings.has_notion_secret])
 
     useEffect(() => {
@@ -172,37 +161,155 @@ export default function Settings() {
     }, [helpOpen, appVersion])
 
     useEffect(() => {
-        const selected = notionDBs.find((db) => db.id === settings.notion_db_id)
-        if (!selected) return
-
-        const dateProps = Object.entries(selected.properties ?? {}).filter(
-            ([_, prop]) => prop.type === "date"
-        )
-
-        if (dateProps.length > 1) {
-            setHasMultipleDateProps(true)
-            setDateValid(settings.date_property_id !== "")
-        } else {
-            setHasMultipleDateProps(false)
-
-            if (dateProps.length === 1) {
-                const [id, prop] = dateProps[0]
-                setSettings((prev) => ({
+        if (!settings.has_notion_secret) {
+            setSettings((prev) => {
+                if (prev.notion_data_source_id === "" && prev.date_property_id === "") {
+                    return prev
+                }
+                return {
                     ...prev,
-                    date_property_id: id,
-                    date_property_name: prop.name,
-                }))
-                setDateValid(true)
-            } else {
+                    notion_data_source_id: "",
+                    date_property_id: "",
+                    date_property_name: "",
+                }
+            })
+            return
+        }
+
+        if (!sourcesLoaded) {
+            return
+        }
+
+        if (dataSources.length === 0) {
+            setSettings((prev) => {
+                if (prev.notion_data_source_id === "" && prev.date_property_id === "") {
+                    return prev
+                }
+                return {
+                    ...prev,
+                    notion_data_source_id: "",
+                    date_property_id: "",
+                    date_property_name: "",
+                }
+            })
+            return
+        }
+
+        const stillValid = dataSources.some((source) => source.id === settings.notion_data_source_id)
+        if (!stillValid) {
+            setSettings((prev) => ({
+                ...prev,
+                notion_data_source_id: "",
+                date_property_id: "",
+                date_property_name: "",
+            }))
+            return
+        }
+
+        if (settings.notion_data_source_id === "" && dataSources.length === 1) {
+            setSettings((prev) => ({
+                ...prev,
+                notion_data_source_id: dataSources[0].id,
+                date_property_id: "",
+                date_property_name: "",
+            }))
+        }
+    }, [dataSources, settings.has_notion_secret, settings.notion_data_source_id, sourcesLoaded])
+
+    useEffect(() => {
+        if (!settings.has_notion_secret || !settings.notion_data_source_id) {
+            setDataSourceDetail(null)
+            setSchemaLoading(false)
+            return
+        }
+
+        let cancelled = false
+        setSchemaLoading(true)
+
+        n.GetDataSourceDetail(settings.notion_data_source_id)
+            .then((detail) => {
+                if (!cancelled) {
+                    setDataSourceDetail(detail)
+                }
+            })
+            .catch((err: any) => {
+                if (cancelled) return
+                setStatus(
+                    "⚠️ Unable to load Notion data source schema: " + (err?.message ?? String(err))
+                )
+                setDataSourceDetail(null)
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setSchemaLoading(false)
+                }
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [settings.has_notion_secret, settings.notion_data_source_id])
+
+    useEffect(() => {
+        if (!dataSourceDetail) {
+            setHasMultipleDateProps(false)
+            setDateValid(settings.notion_data_source_id === "")
+            return
+        }
+
+        if (dateProperties.length === 0) {
+            if (settings.date_property_id !== "") {
                 setSettings((prev) => ({
                     ...prev,
                     date_property_id: "",
                     date_property_name: "",
                 }))
-                setDateValid(false)
             }
+            setHasMultipleDateProps(false)
+            setDateValid(false)
+            return
         }
-    }, [settings.notion_db_id, notionDBs, settings.date_property_id])
+
+        if (dateProperties.length === 1) {
+            const [id, prop] = dateProperties[0]
+            if (
+                settings.date_property_id !== id ||
+                settings.date_property_name !== (prop.name || id)
+            ) {
+                setSettings((prev) => ({
+                    ...prev,
+                    date_property_id: id,
+                    date_property_name: prop.name || id,
+                }))
+            }
+            setHasMultipleDateProps(false)
+            setDateValid(true)
+            return
+        }
+
+        setHasMultipleDateProps(true)
+        const matchedEntry = dateProperties.find(([id]) => id === settings.date_property_id)
+        if (!matchedEntry) {
+            if (settings.date_property_id !== "") {
+                setSettings((prev) => ({
+                    ...prev,
+                    date_property_id: "",
+                    date_property_name: "",
+                }))
+            }
+            setDateValid(false)
+            return
+        }
+
+        const [, matchedProp] = matchedEntry
+        if (settings.date_property_name !== (matchedProp.name || settings.date_property_name)) {
+            setSettings((prev) => ({
+                ...prev,
+                date_property_name: matchedProp.name || prev.date_property_name,
+            }))
+        }
+        setDateValid(true)
+    }, [dataSourceDetail, dateProperties, settings.date_property_id, settings.date_property_name, settings.notion_data_source_id])
 
     useEffect(() => {
         const off = Events.On("Backend:NotionAccessToken", async (ev) => {
@@ -215,10 +322,10 @@ export default function Settings() {
                     const updatedSettings = await s.GetSettings()
                     setSettings(updatedSettings)
 
-                    const dbResponse = await n.GetNotionDatabases()
-                    setNotionDBs(dbResponse?.results ?? [])
+                    const dsResponse = await n.GetNotionDatabases()
+                    setDataSources(dsResponse?.results ?? [])
 
-                    setStatus("✅ Notion connected and databases refreshed.")
+                    setStatus("✅ Notion connected and data sources refreshed.")
                 } catch (err: any) {
                     setStatus(
                         "❌ Notion connected, but failed to refresh: " + (err.message ?? String(err))
@@ -375,7 +482,18 @@ export default function Settings() {
         setOpenAIKey(e.target.value)
     }
 
+    const requiresDataSourceSelection = useMemo(
+        () => settings.notion_data_source_id === "",
+        [settings.notion_data_source_id]
+    )
+
     const saveSettings = async () => {
+        if (requiresDataSourceSelection) {
+            setStatus("⚠️ Select a data source before saving.")
+            setActiveTab("notion")
+            return
+        }
+
         if (!dateValid) {
             setStatus("⚠️ Select a date property before saving.")
             setActiveTab("notion")
@@ -429,25 +547,22 @@ export default function Settings() {
         }
     }
 
-    const getNotionDBs = async () => {
+    const getNotionDataSources = async () => {
         try {
+            setSourcesLoading(true)
+            setSourcesLoaded(false)
             const res = await n.GetNotionDatabases()
             const results = res?.results ?? []
-
-            setNotionDBs(results)
-
-            const selected = results.find((db) => db.id === settings.notion_db_id)
-            if (selected?.has_multiple_date_props) {
-                setHasMultipleDateProps(true)
-            } else {
-                setHasMultipleDateProps(false)
-            }
+            setDataSources(results)
         } catch (err: any) {
             const message = err?.message ?? String(err)
             if (message && !message.includes("401")) {
-                setStatus("⚠️ Unable to load Notion databases: " + message)
+                setStatus("⚠️ Unable to load Notion data sources: " + message)
             }
-            setNotionDBs([])
+            setDataSources([])
+        } finally {
+            setSourcesLoading(false)
+            setSourcesLoaded(true)
         }
     }
 
@@ -644,7 +759,8 @@ s
 
             const refreshedSettings = await s.GetSettings()
             setSettings(refreshedSettings)
-            setNotionDBs([])
+            setDataSources([])
+            setDataSourceDetail(null)
             setHasMultipleDateProps(false)
             setDateValid(true)
             setNotionConnecting(false)
@@ -955,32 +1071,67 @@ s
                     <p>Tell Tasklight where to store tasks and which date field to hydrate.</p>
                 </header>
                 <div className="settings-field">
-                    <label className="field-label">Task database</label>
-                    <SelectNotionDB
-                        databases={notionDBs}
-                        value={settings.notion_db_id}
-                        onChange={(value) =>
-                            setSettings((prev) => ({ ...prev, notion_db_id: value }))
-                        }
-                        disabled={!notionConnected}
-                    />
+                    <label className="field-label">Data source</label>
+                    {!settings.has_notion_secret ? (
+                        <div className="status-chip status-chip--neutral">
+                            Connect to Notion to load data sources
+                        </div>
+                    ) : sourcesLoading ? (
+                        <div className="status-chip status-chip--neutral">Loading data sources…</div>
+                    ) : dataSources.length === 0 ? (
+                        <div className="status-chip status-chip--neutral">
+                            No data sources available
+                        </div>
+                    ) : (
+                        <div className="select-wrapper">
+                            <select
+                                value={settings.notion_data_source_id}
+                                onChange={(e) => {
+                                    const value = e.target.value
+                                    setSettings((prev) => {
+                                        if (prev.notion_data_source_id === value) {
+                                            return prev
+                                        }
+                                        return {
+                                            ...prev,
+                                            notion_data_source_id: value,
+                                            date_property_id: "",
+                                            date_property_name: "",
+                                        }
+                                    })
+                                }}
+                                className="input-control select-control"
+                                disabled={!notionConnected}
+                            >
+                                <option value="" disabled>
+                                    Select a data source
+                                </option>
+                                {dataSources.map((source) => (
+                                    <option key={source.id} value={source.id}>
+                                        {formatDataSourceLabel(source)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
                 <div className="settings-field">
                     <label className="field-label">Date property</label>
-                    {hasMultipleDateProps ? (
+                    {!settings.notion_data_source_id ? (
+                        <div className="status-chip status-chip--neutral">Select a data source first</div>
+                    ) : schemaLoading ? (
+                        <div className="status-chip status-chip--neutral">Loading data source schema…</div>
+                    ) : hasMultipleDateProps ? (
                         <div className="select-wrapper">
                             <select
                                 value={settings.date_property_id}
                                 onChange={(e) => {
                                     const id = e.target.value
-                                    const name =
-                                        notionDBs.find((db) => db.id === settings.notion_db_id)?.properties?.[id]
-                                            ?.name ?? "Unknown"
-
+                                    const prop = dataSourceDetail?.properties?.[id]
                                     setSettings((prev) => ({
                                         ...prev,
                                         date_property_id: id,
-                                        date_property_name: name,
+                                        date_property_name: prop?.name || id,
                                     }))
                                 }}
                                 className="input-control select-control"
@@ -988,23 +1139,35 @@ s
                                 <option value="" disabled>
                                     Select date property
                                 </option>
-                                {Object.entries(
-                                    notionDBs.find((db) => db.id === settings.notion_db_id)?.properties ?? {}
-                                )
-                                    .filter(([_, prop]) => prop.type === "date")
-                                    .map(([id, prop]) => (
-                                        <option key={id} value={id}>
-                                            {prop.name}
-                                        </option>
-                                    ))}
+                                {dateProperties.map(([id, prop]) => (
+                                    <option key={id} value={id}>
+                                        {prop.name || id}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     ) : (
-                        <div className="status-chip status-chip--neutral">
-                            {datePropertyLabel}
+                        <div
+                            className={`status-chip ${
+                                dateProperties.length === 0
+                                    ? "status-chip--negative"
+                                    : "status-chip--neutral"
+                            }`}
+                        >
+                            {dateProperties.length === 0
+                                ? "No date properties on this data source"
+                                : datePropertyLabel}
                         </div>
                     )}
                 </div>
+
+                {settings.has_notion_secret && requiresDataSourceSelection && (
+                    <p className="inline-warning">
+                        {dataSources.length === 0
+                            ? "No data sources available in Notion for this integration."
+                            : "Select a data source before saving."}
+                    </p>
+                )}
 
                 {!dateValid && (
                     <p className="inline-warning">Select a date property before saving.</p>
@@ -1063,7 +1226,7 @@ s
                             <button
                                 type="button"
                                 onClick={saveSettings}
-                                disabled={!dateValid}
+                                disabled={!dateValid || requiresDataSourceSelection}
                                 className="btn btn-accent"
                             >
                                 Save preferences

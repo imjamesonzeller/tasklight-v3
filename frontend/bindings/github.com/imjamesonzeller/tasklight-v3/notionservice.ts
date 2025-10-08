@@ -9,10 +9,19 @@ import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-export function GetNotionDatabases(): Promise<$models.NotionDBResponse | null> & { cancel(): void } {
-    let $resultPromise = $Call.ByID(600908369) as any;
+export function GetDataSourceDetail(dataSourceID: string): Promise<$models.NotionDataSourceDetail | null> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(27228208, dataSourceID) as any;
     let $typingPromise = $resultPromise.then(($result: any) => {
         return $$createType1($result);
+    }) as any;
+    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
+    return $typingPromise;
+}
+
+export function GetNotionDatabases(): Promise<$models.NotionDataSourceList | null> & { cancel(): void } {
+    let $resultPromise = $Call.ByID(600908369) as any;
+    let $typingPromise = $resultPromise.then(($result: any) => {
+        return $$createType3($result);
     }) as any;
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -29,5 +38,7 @@ export function StartOAuth(): Promise<void> & { cancel(): void } {
 }
 
 // Private type creation functions
-const $$createType0 = $models.NotionDBResponse.createFrom;
+const $$createType0 = $models.NotionDataSourceDetail.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.NotionDataSourceList.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);

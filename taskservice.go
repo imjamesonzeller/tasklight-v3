@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	c "github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/imjamesonzeller/tasklight-v3/notionapi"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/openai/openai-go/option"
 	"io"
@@ -188,6 +189,7 @@ func parseTaskFromContent(content string) (TaskInformation, error) {
 	return task, nil
 }
 
+// TODO: Migrate to the new notion API
 func (ts *TaskService) SendToNotion(task TaskInformation) string {
 	token, err := ts.settings.GetNotionToken(true)
 	if err != nil || token == "" {
@@ -199,24 +201,44 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 		return msg
 	}
 
-	postBody := buildNotionPagePayload(task)
+	if c.AppConfig == nil {
+		log.Println("SendToNotion: configuration not initialised")
+		return "Tasklight configuration not ready; reopen the app."
+	}
 
-	jsonData, err := json.Marshal(postBody)
+	if c.AppConfig.NotionDataSourceID == "" {
+		log.Println("SendToNotion: data source not selected")
+		return "Data source not selected for this Notion database."
+	}
+
+	dataSource, err := ts.loadDataSourceDetail(token, c.AppConfig.NotionDataSourceID)
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
+		log.Println("SendToNotion: data source load failed:", err)
+		return fmt.Sprintf("Failed to load Notion data source: %v", err)
+	}
+
+	titlePropName, err := detectTitleProperty(dataSource)
+	if err != nil {
+		log.Println("SendToNotion:", err)
 		return err.Error()
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "https://api.notion.com/v1/pages", bytes.NewBuffer(jsonData))
-	if err != nil {
-		msg := fmt.Sprintf("Error creating request: %v", err)
-		log.Println(msg)
-		return msg
+	if c.AppConfig.DatePropertyName != "" {
+		prop, ok := dataSource.Properties[c.AppConfig.DatePropertyName]
+		if !ok || prop.Type != "date" {
+			msg := fmt.Sprintf("Selected Notion property %q is not available on the chosen data source.", c.AppConfig.DatePropertyName)
+			log.Println("SendToNotion:", msg)
+			return msg
+		}
 	}
 
-	req.Header.Add("Authorization", "Bearer "+token)
-	req.Header.Add("Content-Type", "application/json; charset=utf-8")
-	req.Header.Add("Notion-Version", "2022-06-28")
+	payload := buildNotionPagePayload(task, c.AppConfig.NotionDataSourceID, titlePropName, c.AppConfig.DatePropertyName)
+
+	req, err := notionapi.NewJSONRequest(http.MethodPost, "https://api.notion.com/v1/pages", token, payload)
+	if err != nil {
+		log.Println("SendToNotion: failed to create request:", err)
+		return err.Error()
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -224,20 +246,60 @@ func (ts *TaskService) SendToNotion(task TaskInformation) string {
 		log.Println(msg)
 		return msg
 	}
-	defer resp.Body.Close()
+	status := resp.Status
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		msg := fmt.Sprintf("error reading response: %v", err)
-		log.Println(msg)
-		return msg
+	if err := notionapi.ParseResponse(resp, nil, ErrNotionTokenMissing); err != nil {
+		log.Println("SendToNotion: Notion API error:", err)
+		return err.Error()
 	}
 
-	log.Printf("Notion response: %s", string(body))
-	return resp.Status
+	log.Printf("Notion page created (status %s) using data source %s", status, c.AppConfig.NotionDataSourceID)
+	return status
 }
 
-func buildNotionPagePayload(task TaskInformation) map[string]interface{} {
+func (ts *TaskService) loadDataSourceDetail(token, dataSourceID string) (*NotionDataSourceDetail, error) {
+	req, err := notionapi.NewRequest(http.MethodGet, fmt.Sprintf("https://api.notion.com/v1/data_sources/%s", dataSourceID), token)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var detail NotionDataSourceDetail
+	if err := notionapi.ParseResponse(resp, &detail, ErrNotionTokenMissing); err != nil {
+		return nil, err
+	}
+
+	if detail.Properties == nil {
+		detail.Properties = map[string]PropertyObj{}
+	}
+
+	for key, prop := range detail.Properties {
+		if prop.Name == "" {
+			prop.Name = key
+			detail.Properties[key] = prop
+		}
+	}
+
+	return &detail, nil
+}
+
+func detectTitleProperty(detail *NotionDataSourceDetail) (string, error) {
+	for name, prop := range detail.Properties {
+		if prop.Type == "title" {
+			if prop.Name != "" {
+				return prop.Name, nil
+			}
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("Selected Notion data source is missing a title property.")
+}
+
+func buildNotionPagePayload(task TaskInformation, dataSourceID, titlePropertyName, datePropertyName string) map[string]any {
 	nameProp := map[string]any{
 		"type": "title",
 		"title": []map[string]any{
@@ -251,26 +313,21 @@ func buildNotionPagePayload(task TaskInformation) map[string]interface{} {
 	}
 
 	properties := map[string]any{
-		"Name": nameProp,
+		titlePropertyName: nameProp,
 	}
 
-	if task.Date != nil && c.AppConfig != nil && c.AppConfig.DatePropertyName != "" {
-		properties[c.AppConfig.DatePropertyName] = map[string]any{
+	if task.Date != nil && datePropertyName != "" {
+		properties[datePropertyName] = map[string]any{
 			"date": map[string]any{
 				"start": *task.Date,
 			},
 		}
 	}
 
-	databaseID := ""
-	if c.AppConfig != nil {
-		databaseID = c.AppConfig.NotionDBID
-	}
-
 	return map[string]any{
 		"parent": map[string]any{
-			"type":        "database_id",
-			"database_id": databaseID,
+			"type":           "data_source_id",
+			"data_source_id": dataSourceID,
 		},
 		"properties": properties,
 	}

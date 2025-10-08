@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/imjamesonzeller/tasklight-v3/config"
+	"github.com/imjamesonzeller/tasklight-v3/notionapi"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 )
 
@@ -41,6 +42,8 @@ type NotionOAuthRequest struct {
 	Code        string `json:"code"`
 	RedirectUri string `json:"redirect_uri"`
 }
+
+var errOAuthTokenMissing = errors.New("notion OAuth token missing")
 
 // StartLocalOAuthListener starts http server and handles shutting it down
 func StartLocalOAuthListener(settings *settingsservice.SettingsService) {
@@ -129,34 +132,27 @@ func startHttpServer(wg *sync.WaitGroup, s *settingsservice.SettingsService) *ht
 }
 
 func fetchNotionBotID(accessToken string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, "https://api.notion.com/v1/users/me", nil)
+	req, err := notionapi.NewRequest(http.MethodGet, "https://api.notion.com/v1/users/me", accessToken)
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Notion-Version", "2022-06-28")
 
 	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("/v1/users/me failed: status %d, body: %s", resp.StatusCode, body)
+	var payload struct {
+		ID string `json:"id"`
 	}
-
-	var payload map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	if err := notionapi.ParseResponse(resp, &payload, errOAuthTokenMissing); err != nil {
 		return "", err
 	}
 
-	idVal, ok := payload["id"].(string)
-	if !ok || idVal == "" {
+	if payload.ID == "" {
 		return "", fmt.Errorf("no id in /v1/users/me response")
 	}
-	return idVal, nil
+	return payload.ID, nil
 }
 
 func exchangeCodeForToken(code string) (*NotionOAuthResponse, error) {
