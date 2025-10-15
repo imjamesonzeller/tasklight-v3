@@ -56,6 +56,15 @@ Tasklight was created to reduce the friction of capturing tasks. Rather than swi
 2. Drag `Tasklight.app` into `/Applications`.
 3. Launch the app once, then grant the Accessibility prompt so the global hotkey can fire.
 
+> **Why Gatekeeper Flags Tasklight**  
+> To keep Tasklight free and fully open source we don’t pay for an Apple Developer signing certificate. As a result, macOS marks the app as downloaded from an unidentified developer and applies a quarantine flag. After copying the app to `/Applications`, clear that flag from Terminal:
+>
+> ```bash
+> sudo xattr -rd com.apple.quarantine /Applications/Tasklight.app
+> ```
+>
+> You only need to run this command once per installation.
+
 ---
 
 ## 🔐 First-Time Setup
