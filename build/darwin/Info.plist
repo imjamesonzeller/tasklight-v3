@@ -6,7 +6,7 @@
         <key>CFBundleName</key>
         <string>Tasklight</string>
         <key>CFBundleExecutable</key>
-        <string>tasklight-v3</string>
+        <string>Tasklight</string>
         <key>CFBundleIdentifier</key>
         <string>com.tasklight.app</string>
         <key>CFBundleVersion</key>
@@ -22,6 +22,6 @@
         <key>NSHighResolutionCapable</key>
         <true/>
         <key>NSHumanReadableCopyright</key>
-        <string>© 2024 Tasklight</string>
+        <string>© 2025 Tasklight</string>
     </dict>
 </plist>

@@ -23,9 +23,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// TODO: Create app icon for this
-//
-//go:embed frontend/public/wails.png
+//go:embed tray/tray_image.png
 var trayIcon []byte
 
 // main function serves as the application's entry point. It initializes the application, creates a window,

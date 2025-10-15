@@ -6,7 +6,7 @@
         <key>CFBundleName</key>
         <string>My Product</string>
         <key>CFBundleExecutable</key>
-        <string>tasklight-v3</string>
+        <string>Tasklight</string>
         <key>CFBundleIdentifier</key>
         <string>com.wails.tasklight-v3</string>
         <key>CFBundleVersion</key>
