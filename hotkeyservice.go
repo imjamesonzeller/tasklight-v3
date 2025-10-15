@@ -75,25 +75,26 @@ func (s *HotkeyService) UpdateHotkey() error {
 
 // stopListener stops the existing listener goroutine if it exists
 func (s *HotkeyService) stopListener() {
-	if s.listenerStop != nil {
-		select {
-		case s.listenerStop <- struct{}{}:
-		default:
-		}
+	if stop := s.listenerStop; stop != nil {
+		close(stop)
+		s.listenerStop = nil
 	}
 }
 
 func (s *HotkeyService) startListener() {
-	if s.currentHotkey == nil {
+	hk := s.currentHotkey
+	if hk == nil {
 		return
 	}
 
-	s.listenerStop = make(chan struct{})
+	stop := make(chan struct{})
+	s.listenerStop = stop
+	keydown := hk.Keydown()
 
-	go func(stop <-chan struct{}) {
+	go func(stop <-chan struct{}, keydown <-chan hotkey.Event) {
 		for {
 			select {
-			case <-s.currentHotkey.Keydown():
+			case <-keydown:
 				s.windowService.ToggleVisibility("main")
 				s.app.EmitEvent("Backend:GlobalHotkeyEvent", time.Now().String())
 
@@ -101,7 +102,7 @@ func (s *HotkeyService) startListener() {
 				return
 			}
 		}
-	}(s.listenerStop)
+	}(stop, keydown)
 }
 
 func (s *HotkeyService) PauseHotkey() {

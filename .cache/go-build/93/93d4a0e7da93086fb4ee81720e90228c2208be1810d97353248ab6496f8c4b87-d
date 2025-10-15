@@ -1,0 +1,3 @@
+./hotkeymap.go
+./settingsservice.go
+./settingsservice_test.go

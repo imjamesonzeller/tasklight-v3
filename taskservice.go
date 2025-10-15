@@ -189,7 +189,6 @@ func parseTaskFromContent(content string) (TaskInformation, error) {
 	return task, nil
 }
 
-// TODO: Migrate to the new notion API
 func (ts *TaskService) SendToNotion(task TaskInformation) string {
 	token, err := ts.settings.GetNotionToken(true)
 	if err != nil || token == "" {

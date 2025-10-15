@@ -8,13 +8,11 @@ import (
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"github.com/imjamesonzeller/tasklight-v3/tray"
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"log"
 	"os"
 	"runtime"
-	"time"
-
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
@@ -36,7 +34,6 @@ var trayIcon []byte
 func main() {
 	config.LoadEnv()
 	// Initialize services
-	greetService := &GreetService{}
 	windowService := NewWindowService()
 	startupService := startupservice.NewStartupService()
 	settingsService := settingsservice.NewSettingsService(startupService)
@@ -53,7 +50,6 @@ func main() {
 		Name:        "tasklight-v3",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(greetService),
 			application.NewService(windowService),
 			application.NewService(hotkeyService),
 			application.NewService(taskService),
@@ -127,7 +123,7 @@ func main() {
 		return win
 	})
 
-	app.OnEvent("app:ready", func(e *application.CustomEvent) {
+	app.OnApplicationEvent(events.Common.ApplicationStarted, func(e *application.ApplicationEvent) {
 		OnStartup(windowService, settingsService, notionService)
 	})
 
@@ -144,25 +140,10 @@ func main() {
 		})
 	})
 
-	// Create a goroutine that emits an event containing the current time every second.
-	// The frontend can listen to this event and update the UI accordingly.
-	go func() {
-		for {
-			now := time.Now().Format(time.RFC1123)
-			app.EmitEvent("time", now)
-			time.Sleep(time.Second)
-		}
-	}()
-
 	// Creation of Tray Menu
 	tray.Setup(app, windowService, trayIcon)
 
 	// Run the application. This blocks until the application has been exited.
-	go func() {
-		time.Sleep(100 * time.Millisecond) // let Run() start first
-		app.EmitEvent("app:ready")
-	}()
-
 	err := app.Run()
 
 	// If an error occurred while running the application, log it and exit.

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/imjamesonzeller/tasklight-v3/startupservice"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"time"
 
+	"github.com/imjamesonzeller/tasklight-v3/startupservice"
 	"github.com/keybase/go-keychain"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -422,9 +424,27 @@ func (s *SettingsService) LoadSettings() {
 	}
 
 	data, err := os.ReadFile(s.settingsPath)
-	if err == nil {
-		_ = json.Unmarshal(data, &s.AppSettings)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("warning: failed to read settings file %s: %v", s.settingsPath, err)
+		}
+		return
 	}
+
+	var loaded ApplicationSettings
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		log.Printf("warning: settings file %s is corrupt; reverting to defaults: %v", s.settingsPath, err)
+		if backupPath, backupErr := s.backupCorruptSettings(data); backupErr != nil {
+			log.Printf("warning: unable to back up corrupt settings: %v (parse error: %v)", backupErr, err)
+		} else {
+			log.Printf("info: corrupt settings moved to %s", backupPath)
+		}
+		s.AppSettings = defaultApplicationSettings()
+		s.SaveSettings()
+		return
+	}
+
+	s.AppSettings = loaded
 
 	if !s.AppSettings.HasNotionSecret && s.AppSettings.NotionDataSourceID != "" {
 		s.AppSettings.HasNotionSecret = true
@@ -432,6 +452,26 @@ func (s *SettingsService) LoadSettings() {
 	if !s.AppSettings.HasOpenAIKey && s.AppSettings.UseOpenAI {
 		s.AppSettings.HasOpenAIKey = true
 	}
+}
+
+func (s *SettingsService) backupCorruptSettings(raw []byte) (string, error) {
+	if s.settingsPath == "" {
+		return "", errors.New("settings path not resolved")
+	}
+
+	backupPath := fmt.Sprintf("%s.corrupt-%d", s.settingsPath, time.Now().UnixNano())
+
+	if err := os.Rename(s.settingsPath, backupPath); err != nil {
+		if writeErr := os.WriteFile(backupPath, raw, 0o600); writeErr != nil {
+			return "", errors.Join(err, writeErr)
+		}
+
+		if removeErr := os.Remove(s.settingsPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return backupPath, errors.Join(err, removeErr)
+		}
+	}
+
+	return backupPath, nil
 }
 
 func (s *SettingsService) SaveSettings() {

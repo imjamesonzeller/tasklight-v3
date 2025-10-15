@@ -3,18 +3,18 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"os/exec"
+	"runtime"
+	"strings"
+	"sync"
+
 	"github.com/imjamesonzeller/tasklight-v3/config"
 	"github.com/imjamesonzeller/tasklight-v3/notionapi"
 	"github.com/imjamesonzeller/tasklight-v3/notionauth"
 	"github.com/imjamesonzeller/tasklight-v3/settingsservice"
 	"github.com/keybase/go-keychain"
-	"log"
-	"net/http"
-	"net/url"
-	"os/exec"
-	"runtime"
-	"strings"
-	"sync"
 )
 
 type NotionService struct {
@@ -51,43 +51,34 @@ func openBrowser(url string) {
 }
 
 func (n *NotionService) StartOAuth() {
-	clientID := config.GetEnv("NOTION_CLIENT_ID")
-	redirectURI := config.GetEnv("NOTION_REDIRECT_URI")
-	if redirectURI == "" {
-		redirectURI = "http://localhost:5173/oauth"
-	}
-
-	if clientID == "" {
-		log.Println("⚠️ NOTION_CLIENT_ID is not configured; cannot start OAuth flow")
-		return
-	}
-
 	if !n.beginOAuthListener() {
 		log.Println("ℹ️ Notion OAuth already in progress; ignoring duplicate start request")
 		return
 	}
 
-	go func() {
-		defer n.endOAuthListener()
-		notionauth.StartLocalOAuthListener(n.settingsservice)
-	}()
+	apiBase := config.GetEnv("TASKLIGHT_API_BASE")
+	if apiBase == "" {
+		apiBase = "https://api.jamesonzeller.com"
+	}
+	clientHeader := notionauth.ClientHeader(n.settingsservice)
 
-	authURL := url.URL{
-		Scheme: "https",
-		Host:   "api.notion.com",
-		Path:   "/v1/oauth/authorize",
+	authURL, err := notionauth.ResolveAuthorizeURL(apiBase, clientHeader)
+	if err != nil {
+		log.Printf("⚠️ Failed to initiate Notion OAuth: %v", err)
+		if n.settingsservice != nil && n.settingsservice.App != nil {
+			n.settingsservice.App.EmitEvent("Backend:NotionAccessToken", false)
+		}
+		n.endOAuthListener()
+		return
 	}
 
-	query := url.Values{}
-	query.Set("client_id", clientID)
-	query.Set("response_type", "code")
-	query.Set("owner", "user")
-	query.Set("redirect_uri", redirectURI)
+	go func() {
+		defer n.endOAuthListener()
+		notionauth.StartLocalOAuthListener(n.settingsservice, apiBase, clientHeader)
+	}()
 
-	authURL.RawQuery = query.Encode()
-
-	log.Println("🔍 Launching Notion OAuth:", authURL.String())
-	openBrowser(authURL.String())
+	log.Println("🔍 Launching Notion OAuth:", authURL)
+	openBrowser(authURL)
 }
 
 func (n *NotionService) beginOAuthListener() bool {
