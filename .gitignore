@@ -8,3 +8,5 @@ build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 config/.env
 AGENTS.md
 .gocache
+dist-dmg
+.cache

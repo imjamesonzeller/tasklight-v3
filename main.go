@@ -45,8 +45,8 @@ func main() {
 	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
 	// 'Mac' options tailor the application when running on macOS.
 	app := application.New(application.Options{
-		Name:        "tasklight-v3",
-		Description: "A demo of using raw HTML & CSS",
+		Name:        "Tasklight",
+		Description: "A quick to-do list helper!",
 		Services: []application.Service{
 			application.NewService(windowService),
 			application.NewService(hotkeyService),
