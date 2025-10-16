@@ -2,7 +2,7 @@
 
 **Tasklight** is a minimalist macOS app inspired by Spotlight, built to make task entry as fast and seamless as possible. Using a global hotkey, you can instantly open a lightweight input bar, type a natural language task like “Finish essay by Friday,” and have it automatically parsed and added to your Notion database.
 
-You can find the current UI walkthrough here: [Link](https://youtu.be/O9q4PnzKJlg)
+You can find the current UI walkthrough here: [Link](https://youtu.be/0FS4a6uXHdc)
 
 ## 🧠 Purpose
 
